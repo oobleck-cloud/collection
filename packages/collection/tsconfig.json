@@ -4,8 +4,10 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
+    "skipLibCheck": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
   "include": ["src"]
 }
