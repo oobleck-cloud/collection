@@ -1,0 +1,16 @@
+{
+  "name": "@oobleck/collection-views",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "디자인 시스템 슬롯 위에 올리는 컬렉션 뷰. 부품은 이 패키지가 고르지 않는다.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "peerDependencies": {
+    "@oobleck/collection": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

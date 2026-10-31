@@ -1,0 +1,11 @@
+{
+  "name": "@oobleck/collection",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "헤드리스 컬렉션. React와 디자인 시스템을 모른다.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts"
+}

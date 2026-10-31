@@ -1,0 +1,9 @@
+{
+  "name": "collection",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/collection",
+    "packages/collection-views"
+  ]
+}
