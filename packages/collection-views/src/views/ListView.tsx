@@ -3,7 +3,13 @@
 import { type FC, useMemo } from 'react'
 import { Button, Plus } from '@oobleck/systheme'
 import type { ButtonValue, PropertyDef, PropertyValue, ViewConfig } from '@oobleck/collection'
-import { GROUP_EMPTY, isButtonValue, resolveTitleKey, viewGroups, type Row } from '@oobleck/collection'
+import {
+  GROUP_EMPTY,
+  isButtonValue,
+  resolveTitleKey,
+  viewGroups,
+  type Row,
+} from '@oobleck/collection'
 import { normalizeOptions, isMultiValueType, isOptionBackedType } from '@oobleck/collection'
 import { openClickHandlers } from './open-click'
 import { PropertyChip } from './record-card'

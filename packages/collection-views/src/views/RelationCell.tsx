@@ -7,7 +7,12 @@ import { useCollectionLocale } from '../i18n'
 
 import { relationCellCopy } from './RelationCell.messages'
 
-import type { PropertyValue, RelationCardinality, RelationOption, RelationProvider } from '@oobleck/collection'
+import type {
+  PropertyValue,
+  RelationCardinality,
+  RelationOption,
+  RelationProvider,
+} from '@oobleck/collection'
 
 // Relation 셀(노션식) — 검색·자동완성 + 단일/다중 카디널리티.
 // 닫힘 상태: 현재 선택된 관계의 칩(라벨은 provider.resolve 로 캐시). 빈 상태는 placeholder.

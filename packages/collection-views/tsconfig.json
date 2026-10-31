@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -15,31 +11,13 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "../../../systheme/src/*"
-      ],
-      "react": [
-        "../../../systheme/node_modules/@types/react"
-      ],
-      "react/jsx-runtime": [
-        "../../../systheme/node_modules/@types/react/jsx-runtime.d.ts"
-      ],
-      "react/jsx-dev-runtime": [
-        "../../../systheme/node_modules/@types/react/jsx-dev-runtime.d.ts"
-      ],
-      "react-dom": [
-        "../../../systheme/node_modules/@types/react-dom"
-      ]
+      "@/*": ["../../../systheme/src/*"],
+      "react": ["../../../systheme/node_modules/@types/react"],
+      "react/jsx-runtime": ["../../../systheme/node_modules/@types/react/jsx-runtime.d.ts"],
+      "react/jsx-dev-runtime": ["../../../systheme/node_modules/@types/react/jsx-dev-runtime.d.ts"],
+      "react-dom": ["../../../systheme/node_modules/@types/react-dom"]
     }
   },
-  "include": [
-    "src",
-    "../../../systheme/src/global.d.ts"
-  ],
-  "exclude": [
-    "src/**/*.test.ts",
-    "src/**/*.test.tsx",
-    "src/**/*.stories.tsx",
-    "src/test"
-  ]
+  "include": ["src", "../../../systheme/src/global.d.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.stories.tsx", "src/test"]
 }

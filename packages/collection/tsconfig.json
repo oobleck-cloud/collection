@@ -11,16 +11,9 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "react": [
-        "../../../systheme/node_modules/@types/react"
-      ]
+      "react": ["../../../systheme/node_modules/@types/react"]
     }
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "src/**/*.test.ts",
-    "src/test"
-  ]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/test"]
 }

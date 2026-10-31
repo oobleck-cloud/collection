@@ -7,7 +7,13 @@
  */
 import { fn } from '@storybook/test'
 
-import { bulletListBlock, codeBlock, headingBlock, paragraphBlock, tableBlock } from '@oobleck/collection'
+import {
+  bulletListBlock,
+  codeBlock,
+  headingBlock,
+  paragraphBlock,
+  tableBlock,
+} from '@oobleck/collection'
 
 import { RecordDocumentView } from './RecordDocumentView'
 

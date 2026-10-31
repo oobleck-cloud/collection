@@ -2,7 +2,13 @@
 
 import { createContext, createElement, useContext } from 'react'
 
-import type { FilterCondition, FilterOp, PropertyDef, RollupAgg, RollupSource } from '@oobleck/collection'
+import type {
+  FilterCondition,
+  FilterOp,
+  PropertyDef,
+  RollupAgg,
+  RollupSource,
+} from '@oobleck/collection'
 import type { ReactNode } from 'react'
 
 // @oobleck/collection — 관계 집계(롤업) 조건의 원천과 그 규칙.

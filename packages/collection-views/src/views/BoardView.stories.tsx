@@ -20,7 +20,12 @@ import {
 
 import { BoardView } from './BoardView'
 
-import type { PropertyDef, RelatedRecordRow, RelatedRecordSource, RelationProvider } from '@oobleck/collection'
+import type {
+  PropertyDef,
+  RelatedRecordRow,
+  RelatedRecordSource,
+  RelationProvider,
+} from '@oobleck/collection'
 import type { Meta, StoryObj } from '@storybook/react'
 
 const meta: Meta<typeof BoardView> = {
