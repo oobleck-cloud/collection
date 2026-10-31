@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "\ud5e4\ub4dc\ub9ac\uc2a4 \uceec\ub809\uc158. React\uc640 \ub514\uc790\uc778 \uc2dc\uc2a4\ud15c\uc744 \ubaa8\ub978\ub2e4.",
+  "description": "헤드리스 컬렉션. React와 디자인 시스템을 모른다.",
   "exports": {
     ".": "./src/index.ts"
   },
@@ -14,5 +14,13 @@
   "scripts": {
     "type-check": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.15",
+    "react": "^19.0.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
   }
 }

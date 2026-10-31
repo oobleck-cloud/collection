@@ -11,8 +11,8 @@
   },
   "types": "./src/i18n/index.ts",
   "dependencies": {
-    "@oobleck/collection": "link:../collection",
-    "@oobleck/systheme": "link:../../../systheme",
+    "@oobleck/collection": "file:../collection",
+    "@oobleck/systheme": "file:../../../systheme",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
@@ -24,8 +24,8 @@
     "@storybook/test": "^8.0.0",
     "@testing-library/jest-dom": "^6",
     "@testing-library/react": "^16",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^4",
     "@vitest/coverage-v8": "^3",
     "jsdom": "^25",
