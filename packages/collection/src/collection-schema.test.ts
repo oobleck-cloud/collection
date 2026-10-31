@@ -95,10 +95,18 @@ describe('collectionConfigSchema — UI 가 만드는 값의 라운드트립(롤
           config: {
             type: 'timeline' as const,
             cardSize: 'L' as const,
+            cardPropLabels: true,
             timeline: { startKey: 'start', endKey: 'end', zoom: 'week' as const },
             rowHeight: 'M' as const,
             wrapCells: true,
             hideEmptyGroups: true,
+            collapseEmptyGroups: true,
+            relationTable: {
+              key: 'quotes',
+              maxRows: 3,
+              variant: 'list' as const,
+              collapsed: true,
+            },
             groupSort: 'count' as const,
           },
         },
@@ -107,11 +115,32 @@ describe('collectionConfigSchema — UI 가 만드는 값의 라운드트립(롤
     const parsed = collectionConfigSchema.parse(config)
     const cfg = parsed.views?.[0]?.config
     expect(cfg?.cardSize).toBe('L')
+    expect(cfg?.cardPropLabels).toBe(true)
     expect(cfg?.timeline).toEqual({ startKey: 'start', endKey: 'end', zoom: 'week' })
     expect(cfg?.rowHeight).toBe('M')
     expect(cfg?.wrapCells).toBe(true)
     expect(cfg?.hideEmptyGroups).toBe(true)
+    expect(cfg?.collapseEmptyGroups).toBe(true)
+    expect(cfg?.relationTable).toEqual({
+      key: 'quotes',
+      maxRows: 3,
+      variant: 'list',
+      collapsed: true,
+    })
     expect(cfg?.groupSort).toBe('count')
+  })
+
+  it('뷰 config 의 columnWidths(뷰별 컬럼 폭) 라운드트립 — 범위(40~800) 밖은 거절한다', () => {
+    const withWidths = (columnWidths: Record<string, number>) => ({
+      views: [{ id: 'v1', name: '뷰', config: { columnWidths } }],
+    })
+    const parsed = collectionConfigSchema.parse(withWidths({ status: 200, 'x:담당': 150 }))
+    expect(parsed.views?.[0]?.config.columnWidths).toEqual({ status: 200, 'x:담당': 150 })
+    expect(collectionConfigSchema.safeParse(withWidths({ status: 20 })).success).toBe(false)
+    expect(collectionConfigSchema.safeParse(withWidths({ status: 801 })).success).toBe(false)
+    // 없는 뷰는 그대로 — 필드가 생기지 않는다.
+    const legacy = collectionConfigSchema.parse({ views: [{ id: 'v1', name: '뷰', config: {} }] })
+    expect(legacy.views?.[0]?.config.columnWidths).toBeUndefined()
   })
 })
 

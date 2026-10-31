@@ -31,6 +31,7 @@ vi.mock('@oobleck/systheme', () => {
       'EyeOff',
       'FileText',
       'Hash',
+      'LayoutDashboard',
       'Link2',
       'List',
       'Lock',
@@ -44,6 +45,8 @@ vi.mock('@oobleck/systheme', () => {
       'Tags',
       'Trash2',
       'Type',
+      'User',
+      'Users',
     ].map((n) => [n, makeIcon(n.toLowerCase())]),
   )
 

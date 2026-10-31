@@ -7,6 +7,8 @@ import {
   parseDateValueParts,
   buildDateValue,
   formatDateValueDisplay,
+  formatRelativeDay,
+  formatShortDay,
 } from './date-value'
 
 // date 값 표현(노션식 확장): 'YYYY-MM-DD' | 'YYYY-MM-DDTHH:mm'(시간) | '<start>/<end>'(기간).
@@ -97,5 +99,46 @@ describe('date-value — formatDateValueDisplay', () => {
     expect(formatDateValueDisplay('2026-07-01/2026-07-05')).toContain('~')
     expect(formatDateValueDisplay('2026-07-01T14:30')).toContain('14:30')
     expect(formatDateValueDisplay('')).toBe('')
+  })
+
+  it("format 'iso' 는 「2026-07-01」 — 단일·기간·시간 모두 같은 자릿수, 기본은 그대로 한국어", () => {
+    expect(formatDateValueDisplay('2026-07-01', 'iso')).toBe('2026-07-01')
+    expect(formatDateValueDisplay('2026-07-01/2026-07-05', 'iso')).toBe('2026-07-01 ~ 2026-07-05')
+    expect(formatDateValueDisplay('2026-07-01T09:05', 'iso')).toBe('2026-07-01 09:05')
+    expect(formatDateValueDisplay('2026-07-01', 'iso')).not.toBe(
+      formatDateValueDisplay('2026-07-01'),
+    )
+    expect(formatDateValueDisplay('2026-07-01')).toBe(formatDateValueDisplay('2026-07-01', 'ko'))
+  })
+
+  it("format 'relative' 는 오늘 기준 「D-3」·「D-day」·「D+2」 — 시각은 날짜 차이에 끼지 않는다", () => {
+    const now = new Date(2026, 9, 26, 23, 50) // 2026-10-26 23:50(로컬)
+    expect(formatDateValueDisplay('2026-10-29', 'relative', now)).toBe('D-3')
+    expect(formatDateValueDisplay('2026-10-26', 'relative', now)).toBe('D-day')
+    expect(formatDateValueDisplay('2026-10-27', 'relative', now)).toBe('D-1')
+    expect(formatDateValueDisplay('2026-10-24', 'relative', now)).toBe('D+2')
+    // 시각이 있으면 시각을 덧붙인다 — 날짜 거리는 그대로 날 단위.
+    expect(formatDateValueDisplay('2026-10-27T00:10', 'relative', now)).toBe('D-1 00:10')
+    // 기간은 양 끝을 각각.
+    expect(formatDateValueDisplay('2026-10-25/2026-10-28', 'relative', now)).toBe('D+1 ~ D-2')
+    expect(formatDateValueDisplay('', 'relative', now)).toBe('')
+  })
+
+  it('formatRelativeDay — 달·해가 바뀌어도 날 수를 센다', () => {
+    expect(formatRelativeDay(new Date(2027, 0, 2), new Date(2026, 11, 30, 9))).toBe('D-3')
+    expect(formatRelativeDay(new Date(2026, 1, 28), new Date(2026, 2, 1))).toBe('D+1')
+  })
+})
+
+describe('짧은 날짜(dateFormat short) — 카드 한 줄에 끼는 「10/23(목)」', () => {
+  it('올해면 월/일(요일), 시각이 있으면 뒤에', () => {
+    expect(formatShortDay(new Date(2026, 9, 23), new Date(2026, 9, 29))).toBe('10/23(금)')
+    expect(formatDateValueDisplay('2026-10-23T11:30', 'short', new Date(2026, 9, 29))).toBe(
+      '10/23(금) 11:30',
+    )
+  })
+
+  it('올해가 아니면 연도를 앞에', () => {
+    expect(formatShortDay(new Date(2025, 11, 31), new Date(2026, 0, 2))).toBe('2025/12/31(수)')
   })
 })

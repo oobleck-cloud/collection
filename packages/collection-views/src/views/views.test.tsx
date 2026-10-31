@@ -85,10 +85,13 @@ vi.mock('@oobleck/systheme', () => {
     cn,
     ArrowLeftRight,
     Hash,
+    LayoutDashboard: makeIcon('layout-dashboard'),
     Link2,
     SquareCheck,
     Tags,
     Type,
+    User: makeIcon('user'),
+    Users: makeIcon('users'),
     Mail,
     Map: MapIcon,
     Phone,
@@ -285,7 +288,9 @@ describe('GalleryView', () => {
     render(<GalleryView records={records} pack={pack} view={baseView} />)
 
     // groupBy 없으므로 섹션 헤더 없이 카드만 렌더. 크래시가 없으면 OK.
-    expect(screen.queryByText('카테고리A')).toBeNull() // 그룹 헤더 없음
+    // 그룹 헤더 없음 — 헤더의 색 점으로 본다(카드 칩이 선택지 라벨 「카테고리A」를 그리므로 글자로는 못 가린다).
+    expect(screen.queryByTestId('group-color-swatch')).toBeNull()
+    expect(screen.getByText('카테고리A')).toBeDefined() // 카드 칩 = 값(A)이 아니라 라벨
     // 카드 내 제목은 visibleProps 설정이 없으므 schema 전체에 포함됨 — 하지만
     // GallerySection 이 titleKey 를 찾아 제목으로 쓰므로 schema[0].key='name' 이 title.
     // (단, visibleProps 미설정이면 resolveTitleKey 는 schema[0] = 'name' 을 쓴다)

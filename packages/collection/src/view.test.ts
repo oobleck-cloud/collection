@@ -29,6 +29,7 @@ const baseView = (
     : andGroup([]),
   sort: over.sort ?? [],
   groupBy: over.groupBy,
+  groupEmptyAs: over.groupEmptyAs,
   visibleProps: over.visibleProps,
 })
 
@@ -148,6 +149,20 @@ describe('viewRows — filter', () => {
     ).toEqual(['3', '4'])
   })
 
+  it('in / not_in — 값 목록 중 하나(단일값)·하나라도 겹침(다중값)', () => {
+    const run = (filters: FilterCondition[]) => ids(viewRows(records, baseView({ filters })))
+    expect(run([{ key: 'status', op: 'in', value: ['draft', 'published'] }])).toEqual([
+      '1',
+      '2',
+      '3',
+    ])
+    expect(run([{ key: 'status', op: 'not_in', value: ['draft', 'published'] }])).toEqual(['4'])
+    expect(run([{ key: 'tags', op: 'in', value: ['a', 'c'] }])).toEqual(['1', '4'])
+    expect(run([{ key: 'tags', op: 'not_in', value: ['a', 'c'] }])).toEqual(['2', '3'])
+    // 아직 값을 고르지 않은 조건은 제약 없음.
+    expect(run([{ key: 'status', op: 'in', value: [] }])).toEqual(['1', '2', '3', '4'])
+  })
+
   it('is_empty / is_not_empty (null·빈문자·빈배열만 empty, 0·false 는 값)', () => {
     expect(
       ids(viewRows(records, baseView({ filters: [{ key: 'status', op: 'is_empty' }] }))),
@@ -190,6 +205,29 @@ describe('viewRows — filter', () => {
     expect(
       ids(viewRows(records, baseView({ filters: [{ key: 'count', op: 'contains', value: '' }] }))),
     ).toEqual([])
+  })
+})
+
+describe('viewRows — 그 분(`YYYY-MM-DDTHH:mm`)', () => {
+  // 셀은 로컬 분으로 접혀 비교된다 — 초·오프셋이 달린 값도, 날짜만 든 값(그날 0시)도.
+  const local = (h: number, m = 0) => new Date(2026, 9, 17, h, m).toISOString()
+  const rows: Row<P>[] = [
+    { id: 'am', props: { at: local(9) } },
+    { id: 'noon', props: { at: local(12) } },
+    { id: 'naive', props: { at: '2026-10-17T12:30' } },
+    { id: 'day', props: { at: '2026-10-17' } },
+  ]
+  const at = (op: FilterCondition['op'], value: string) =>
+    ids(viewRows(rows, baseView({ filters: [{ key: 'at', op, value }] })))
+
+  it('같다는 그 분 — 초 아래와 오프셋 표기에 흔들리지 않는다', () => {
+    expect(at('eq', '2026-10-17T12:00')).toEqual(['noon'])
+    expect(at('eq', '2026-10-17T00:00')).toEqual(['day'])
+  })
+
+  it('전/후는 순간으로 — 날짜만 든 값은 그날 0시', () => {
+    expect(at('lt', '2026-10-17T12:00')).toEqual(['am', 'day'])
+    expect(at('gte', '2026-10-17T12:00')).toEqual(['noon', 'naive'])
   })
 })
 
@@ -312,6 +350,12 @@ describe('viewGroups — group', () => {
     expect(ids(groups[0].rows)).toEqual(['1', '3'])
     expect(ids(groups[1].rows)).toEqual(['2'])
     expect(ids(groups[2].rows)).toEqual(['4']) // status=null
+  })
+
+  it('groupEmptyAs — 빈 값은 「없음」이 아니라 정해 둔 그룹에 선다(기록 없으면 신규)', () => {
+    const groups = viewGroups(records, baseView({ groupBy: 'status', groupEmptyAs: 'draft' }))
+    expect(groups.map((g) => g.key)).toEqual(['published', 'draft'])
+    expect(ids(groups[1].rows)).toEqual(['2', '4'])
   })
 
   it('filter·sort 를 먼저 적용한 뒤 그룹', () => {

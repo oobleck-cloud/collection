@@ -4,8 +4,9 @@ import { type FC, useMemo } from 'react'
 import { Plus, cn } from '@oobleck/systheme'
 import type { PropertyDef, PropertyValue, ViewConfig } from '@oobleck/collection'
 import { GROUP_EMPTY, resolveTitleKey, viewGroups, type Row } from '@oobleck/collection'
-import { normalizeOptions } from '@oobleck/collection'
-import { isCoverUrl, RecordCard } from './record-card'
+import { normalizeOptions, isMultiValueType, isOptionBackedType } from '@oobleck/collection'
+import { resolveCardFormat } from '@oobleck/collection'
+import { cardDisplayProps, isCoverUrl, RecordCard } from './record-card'
 import { formatTitleText } from '@oobleck/collection'
 import { useCollectionLocale } from '../i18n'
 import { galleryViewCopy } from './GalleryView.messages'
@@ -67,7 +68,9 @@ type GallerySectionProps = {
   view: ViewConfig
   titleKey: string | undefined
   displayPropDefs: PropertyDef[]
-  onOpen?: (id: string) => void
+  /** 전체 스키마 — 빈 속성의 대신 보일 속성(cardFallbackKey)을 찾는다. */
+  schema: PropertyDef[]
+  onOpen?: (id: string, event?: React.MouseEvent) => void
   onDeleteRow?: (id: string) => void
   onCreate?: () => void | Promise<void>
   createLabel?: string
@@ -82,6 +85,7 @@ function GallerySection({
   view,
   titleKey,
   displayPropDefs,
+  schema,
   onOpen,
   onDeleteRow,
   onCreate,
@@ -122,18 +126,22 @@ function GallerySection({
           const titleText = formatTitleText(titleValue ?? null)
           const coverVal = view.coverKey ? row.props[view.coverKey] : null
           const cover = isCoverUrl(coverVal) ? coverVal : null
-          const displayProps = displayPropDefs.map((def) => ({
-            def,
-            value: row.props[def.key] ?? null,
-          }))
+          // 조건부 서식 — 표와 같은 규칙을 카드에(보드와 같다, resolveCardFormat).
+          const format = resolveCardFormat(view.conditionalFormats, row.props, [
+            ...(titleKey ? [titleKey] : []),
+            ...displayPropDefs.map((d) => d.key),
+          ])
+          const displayProps = cardDisplayProps(displayPropDefs, row.props, schema, format.byKey)
           return (
             <RecordCard
               key={row.id}
               cover={cover}
               title={titleText}
               displayProps={displayProps}
+              format={format.card}
               size={size}
-              onOpen={onOpen ? () => onOpen(row.id) : undefined}
+              labels={view.cardPropLabels ?? false}
+              onOpen={onOpen ? (e) => onOpen(row.id, e) : undefined}
               onDelete={onDeleteRow ? () => onDeleteRow(row.id) : undefined}
             />
           )
@@ -179,7 +187,7 @@ export const GalleryView: FC<ViewSurfaceProps> = ({
   // 제목 = visibleProps 의 첫 컬럼(board 와 동일 규칙). schema[0] 직접 사용 금지(상품 schema[0]=status).
   const titleKey = resolveTitleKey(propertySchema, view)
   const groupByDef = view.groupBy ? propertySchema.find((d) => d.key === view.groupBy) : undefined
-  const isMulti = groupByDef?.type === 'multi_select'
+  const isMulti = groupByDef ? isMultiValueType(groupByDef.type) : false
 
   const displayPropDefs = useMemo(
     () => resolveDisplayProps(propertySchema, view, titleKey),
@@ -193,7 +201,7 @@ export const GalleryView: FC<ViewSurfaceProps> = ({
     const labelMap = new Map<string, string>()
     const colorMap = new Map<string, string>()
     if (!view.groupBy || !groupByDef) return { groupLabelMap: labelMap, groupColorMap: colorMap }
-    if (groupByDef.type === 'select' || groupByDef.type === 'multi_select') {
+    if (isOptionBackedType(groupByDef.type)) {
       const opts = normalizeOptions(groupByDef.options)
       for (const opt of opts) {
         labelMap.set(opt.value, opt.label ?? opt.value)
@@ -231,6 +239,7 @@ export const GalleryView: FC<ViewSurfaceProps> = ({
           view={view}
           titleKey={titleKey}
           displayPropDefs={displayPropDefs}
+          schema={propertySchema}
           onOpen={onOpen}
           onDeleteRow={onDeleteRow}
           onCreate={onCreate}

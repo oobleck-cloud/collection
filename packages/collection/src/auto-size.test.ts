@@ -132,6 +132,28 @@ describe('autoSizeColumns', () => {
   })
 })
 
+describe('autoSizeColumns — 날짜는 셀이 그리는 글자로 잰다', () => {
+  it('저장값(2026-10-21)보다 표시(2026. 10. 21.)가 길다 — 표시로 재야 칸 안에 한 줄로 든다', () => {
+    const rows = [{ d: '2026-10-21' }]
+    const asDate = autoSizeColumns([col({ key: 'd', label: 'd', type: 'date' })], rows, {
+      minPx: 0,
+    })
+    const asText = autoSizeColumns([col({ key: 'd', label: 'd' })], rows, { minPx: 0 })
+    expect(asDate.d).toBeGreaterThan(asText.d!)
+  })
+
+  it("dateFormat 'iso' 컬럼은 「2026-10-21」로 잰다 — 저장값과 같은 글자라 같은 폭", () => {
+    const rows = [{ d: '2026-10-21' }]
+    const iso = autoSizeColumns(
+      [col({ key: 'd', label: 'd', type: 'date', dateFormat: 'iso' })],
+      rows,
+      { minPx: 0 },
+    )
+    const asText = autoSizeColumns([col({ key: 'd', label: 'd' })], rows, { minPx: 0 })
+    expect(iso.d).toBe(asText.d)
+  })
+})
+
 describe('applyAutoWidths', () => {
   const schema = [col({ key: 'a', label: 'A' }), col({ key: 'b', label: 'B' })]
 

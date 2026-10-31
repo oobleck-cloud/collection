@@ -4,7 +4,8 @@ import { type FC, useMemo } from 'react'
 import { Button, Plus } from '@oobleck/systheme'
 import type { ButtonValue, PropertyDef, PropertyValue, ViewConfig } from '@oobleck/collection'
 import { GROUP_EMPTY, isButtonValue, resolveTitleKey, viewGroups, type Row } from '@oobleck/collection'
-import { normalizeOptions } from '@oobleck/collection'
+import { normalizeOptions, isMultiValueType, isOptionBackedType } from '@oobleck/collection'
+import { openClickHandlers } from './open-click'
 import { PropertyChip } from './record-card'
 import { RowActionMenu } from './row-action-menu'
 import { formatTitleText } from '@oobleck/collection'
@@ -59,7 +60,8 @@ type ListRowProps = {
   row: Row<Record<string, PropertyValue>>
   titleKey: string | undefined
   rowPropDefs: PropertyDef[]
-  onOpen?: (id: string) => void
+  /** 행 열기 — 마우스로 열면 원본 이벤트를 함께 넘긴다(⌘/Ctrl·가운데 클릭 = 새 탭). */
+  onOpen?: (id: string, event?: React.MouseEvent) => void
   /** 버튼 프로퍼티(type='button') 클릭 — (rowId, action). 미지정 시 버튼 비활성. */
   onAction?: (id: string, action: string) => void
   /** 행 삭제(→휴지통) — 지정 시 행 우측 hover 케밥에 "삭제" 노출. 실행은 호스트(순수 콜백). */
@@ -87,7 +89,7 @@ function ListRow({ row, titleKey, rowPropDefs, onOpen, onAction, onDeleteRow }: 
     <div
       role={onOpen ? 'button' : undefined}
       tabIndex={onOpen ? 0 : undefined}
-      onClick={onOpen ? () => onOpen(row.id) : undefined}
+      {...openClickHandlers(onOpen ? (e) => onOpen(row.id, e) : undefined)}
       onKeyDown={
         onOpen
           ? (e) => {
@@ -167,7 +169,7 @@ export const ListView: FC<ViewSurfaceProps> = ({
   // 제목 = visibleProps 의 첫 컬럼(board 와 동일 규칙). schema[0] 직접 사용 금지(상품 schema[0]=status).
   const titleKey = resolveTitleKey(propertySchema, view)
   const groupByDef = view.groupBy ? propertySchema.find((d) => d.key === view.groupBy) : undefined
-  const isMulti = groupByDef?.type === 'multi_select'
+  const isMulti = groupByDef ? isMultiValueType(groupByDef.type) : false
 
   const rowPropDefs = useMemo(
     () => resolveRowProps(propertySchema, view, titleKey),
@@ -178,7 +180,7 @@ export const ListView: FC<ViewSurfaceProps> = ({
     const labelMap = new Map<string, string>()
     const colorMap = new Map<string, string>()
     if (!view.groupBy || !groupByDef) return { groupLabelMap: labelMap, groupColorMap: colorMap }
-    if (groupByDef.type === 'select' || groupByDef.type === 'multi_select') {
+    if (isOptionBackedType(groupByDef.type)) {
       const opts = normalizeOptions(groupByDef.options)
       for (const opt of opts) {
         labelMap.set(opt.value, opt.label ?? opt.value)

@@ -1,7 +1,8 @@
 'use client'
 
 import { Copy, EyeOff, Pencil, Popover, Trash2, Users, cn } from '@oobleck/systheme'
-import type { SavedView } from '@oobleck/collection'
+
+import { useCollectionLocale } from '../i18n'
 import {
   canDeleteSavedView,
   canDuplicateSavedView,
@@ -9,8 +10,10 @@ import {
   canRemoveViewFromTabs,
   isSharedSavedView,
 } from '@oobleck/collection'
-import { useCollectionLocale } from '../i18n'
+
 import { viewTabsCopy } from './ViewTabs.messages'
+
+import type { SavedView } from '@oobleck/collection'
 
 // @oobleck/collection — 활성 뷰 탭의 메뉴(ViewTabs 전용, 배럴 비노출).
 //
@@ -62,6 +65,8 @@ export type ViewTabMenuProps = {
   view: SavedView
   defaultViewId: string
   currentUserId?: string | null
+  /** 관리자 — 남의 공유 뷰도 이름 변경·공유 전환(삭제는 아님). */
+  canManageAny?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   /** 인라인 이름 편집 모드로 들어간다(이름 변경은 탭 자리에서 한다). */
@@ -86,6 +91,7 @@ export function ViewTabMenu({
   view,
   defaultViewId,
   currentUserId,
+  canManageAny,
   open,
   onOpenChange,
   onRenameStart,
@@ -96,7 +102,7 @@ export function ViewTabMenu({
   children,
 }: ViewTabMenuProps) {
   const c = viewTabsCopy(useCollectionLocale())
-  const guard = { defaultViewId, currentUserId }
+  const guard = { defaultViewId, currentUserId, canManageAny }
   const shared = isSharedSavedView(view)
   const editable = canEditSavedView(view, guard)
   const removable = canRemoveViewFromTabs(view.id, guard)

@@ -13,7 +13,7 @@
 //   신규 파일. view.ts / types.ts / index.ts 를 수정하지 않는다.
 //   배럴 export(index.ts) 추가는 통합 단계에서 결정 — 현재는 deep-import 로 소비.
 
-import type { FilterGroup, FilterNode, FilterOp, PropertyValue, Sort } from './types'
+import type { FilterGroup, FilterNode, FilterOp, PropertyValue, RollupAgg, Sort } from './types'
 import { normalizeFilterRoot, viewRows } from './view'
 import type { Row } from './view'
 
@@ -28,6 +28,14 @@ export type CompiledCondition = {
   key: string
   op: FilterOp
   value: PropertyValue
+  /** 관계 집계 조건이면 그 셈과 대상 조건(AND). 자세한 의미는 `FilterCondition.rollup`. */
+  rollup?: CompiledRollup
+}
+
+export type CompiledRollup = {
+  agg: RollupAgg
+  field?: string
+  where: CompiledNode[]
 }
 
 /**
@@ -94,6 +102,15 @@ function compileNode(node: FilterNode): CompiledNode {
     key: node.key,
     op: node.op,
     value: node.value ?? null,
+    ...(node.rollup
+      ? {
+          rollup: {
+            agg: node.rollup.agg,
+            ...(node.rollup.field ? { field: node.rollup.field } : {}),
+            where: node.rollup.where.map(compileNode),
+          },
+        }
+      : {}),
   }
 }
 
@@ -149,6 +166,15 @@ function irToFilterNode(node: CompiledNode): FilterNode {
     key: node.key,
     op: node.op,
     value: node.value,
+    ...(node.rollup
+      ? {
+          rollup: {
+            agg: node.rollup.agg,
+            ...(node.rollup.field ? { field: node.rollup.field } : {}),
+            where: node.rollup.where.map(irToFilterNode),
+          },
+        }
+      : {}),
   }
 }
 

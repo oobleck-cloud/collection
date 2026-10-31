@@ -68,6 +68,8 @@ const filterOpSchema = z.enum([
   'lte',
   'has',
   'not_has',
+  'in',
+  'not_in',
   'is_empty',
   'is_not_empty',
 ])
@@ -173,10 +175,14 @@ const timelineConfigSchema = z.object({
 
 const viewSchema = z.object({
   visibleProps: z.array(z.string()).optional(),
+  // 이 뷰가 이미 아는 컬럼(CollectionViewConfig.knownProps). 빠지면 PATCH 마다 strip 되어
+  // 숨긴 컬럼이 다음 로드에 "새 컬럼"으로 되살아난다.
+  knownProps: z.array(z.string()).optional(),
   sort: z.array(sortSchema).optional(),
   // 트리(FilterGroup) 또는 레거시 평탄 배열. 로드 시 normalizeFilterRoot 가 정규화.
   filters: filterExprSchema.optional(),
   groupBy: z.string().optional(),
+  groupEmptyAs: z.string().optional(),
   // 'grid' 는 레거시(노션 gallery) — 입력은 받되 즉시 'gallery' 로 정규화해 영속(어휘 정렬, 하위호환).
   type: viewTypeSchema.transform((t) => (t === 'grid' ? ('gallery' as const) : t)).optional(),
   aggregations: z.record(z.string(), aggregationTypeSchema).optional(),
@@ -188,11 +194,34 @@ const viewSchema = z.object({
   // 아래 필드들은 CollectionViewConfig 에 있으나 과거 Zod 에 누락돼 PATCH 마다 strip → 영속되지 않던 뷰 설정들
   // (카드 크기·타임라인 축·빈 그룹 숨김·행 높이·셀 줄바꿈·그룹 정렬). collections types 와 정합시켜 라운드트립 보장.
   cardSize: z.enum(['S', 'M', 'L']).optional(),
+  cardPropLabels: z.boolean().optional(),
+  // 보드 카드의 관계 표(RelationTableConfig) — 빠지면 PATCH 마다 strip 되어 표 설정이 저장되지 않는다.
+  relationTable: z
+    .object({
+      key: z.string(),
+      columns: z.array(z.string()).optional(),
+      maxRows: z.number().int().min(1).max(20).optional(),
+      variant: z.enum(['table', 'list', 'rows']).optional(),
+      collapsed: z.boolean().optional(),
+    })
+    .optional(),
+  // 보드 카드 짜임(CardLayoutConfig) — 빠지면 PATCH 마다 strip 되어 배지 · 숫자 띠가 저장되지 않는다.
+  cardLayout: z
+    .object({
+      badgeKey: z.string().optional(),
+      metrics: z.array(z.string()).max(4).optional(),
+    })
+    .optional(),
   timeline: timelineConfigSchema.optional(),
   hideEmptyGroups: z.boolean().optional(),
+  // 보드의 빈 열을 좁은 띠로 접기(collapseEmptyGroups) — 빠지면 PATCH 마다 strip 된다.
+  collapseEmptyGroups: z.boolean().optional(),
   rowHeight: z.enum(['S', 'M', 'L']).optional(),
   wrapCells: z.boolean().optional(),
   groupSort: z.enum(['manual', 'name', 'count']).optional(),
+  // 뷰별 컬럼 폭(키 → px). 범위는 PropertyDef.width 의 px 와 같은 40~800 — 빠지면 PATCH 마다 strip 되어
+  // 끌어서 맞춘 폭이 저장되지 않는다.
+  columnWidths: z.record(z.string(), z.number().int().min(40).max(800)).optional(),
 })
 
 // 명명 뷰(SavedView) — 다중 뷰. 노션 DB 의 좌상단 탭 단위.

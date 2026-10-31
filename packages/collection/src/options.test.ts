@@ -395,6 +395,7 @@ describe('toViewConfig — 저장 config → 렌더러 ViewConfig(빈 필드 채
       expected: unknown
     }[] = [
       { key: 'groupBy', saved: { groupBy: 'status' }, expected: 'status' },
+      { key: 'groupEmptyAs', saved: { groupEmptyAs: '신규' }, expected: '신규' },
       {
         key: 'aggregations',
         saved: { aggregations: { price: 'sum' } },
@@ -408,6 +409,31 @@ describe('toViewConfig — 저장 config → 렌더러 ViewConfig(빈 필드 채
       { key: 'rowOrder', saved: { rowOrder: ['a', 'b'] }, expected: ['a', 'b'] },
       { key: 'coverKey', saved: { coverKey: 'thumbnail' }, expected: 'thumbnail' },
       { key: 'cardSize', saved: { cardSize: 'L' }, expected: 'L' },
+      { key: 'cardPropLabels', saved: { cardPropLabels: true }, expected: true },
+      {
+        key: 'cardLayout',
+        saved: { cardLayout: { badgeKey: 'due', metrics: ['base', 'gap'] } },
+        expected: { badgeKey: 'due', metrics: ['base', 'gap'] },
+      },
+      {
+        key: 'relationTable',
+        saved: {
+          relationTable: {
+            key: 'quotes',
+            columns: ['partner'],
+            maxRows: 3,
+            variant: 'list',
+            collapsed: true,
+          },
+        },
+        expected: {
+          key: 'quotes',
+          columns: ['partner'],
+          maxRows: 3,
+          variant: 'list',
+          collapsed: true,
+        },
+      },
       {
         key: 'timeline',
         saved: { timeline: { startKey: 'startsAt', endKey: 'endsAt' } },
@@ -418,9 +444,11 @@ describe('toViewConfig — 저장 config → 렌더러 ViewConfig(빈 필드 채
         saved: { hideEmptyGroups: true },
         expected: true,
       },
+      { key: 'collapseEmptyGroups', saved: { collapseEmptyGroups: true }, expected: true },
       { key: 'rowHeight', saved: { rowHeight: 'L' }, expected: 'L' },
       { key: 'wrapCells', saved: { wrapCells: true }, expected: true },
       { key: 'groupSort', saved: { groupSort: 'name' }, expected: 'name' },
+      { key: 'columnWidths', saved: { columnWidths: { status: 200 } }, expected: { status: 200 } },
       {
         key: 'conditionalFormats',
         saved: {
@@ -460,6 +488,14 @@ describe('toViewConfig — 저장 config → 렌더러 ViewConfig(빈 필드 채
   // (토글 OFF 상태 영속). truthy 가드로 회귀하면 false 가 조용히 드롭되므로 핀으로 박는다.
   it('toViewConfig 가 hideEmptyGroups=false 명시값을 보존한다', () => {
     expect(toViewConfig({ hideEmptyGroups: false }, DEFAULT_VISIBLE).hideEmptyGroups).toBe(false)
+  })
+
+  // collapseEmptyGroups 도 boolean — 토글 OFF(false) 명시값이 조용히 드롭되지 않게.
+  it('toViewConfig 가 collapseEmptyGroups=false 명시값을 보존한다', () => {
+    expect(toViewConfig({ collapseEmptyGroups: false }, DEFAULT_VISIBLE).collapseEmptyGroups).toBe(
+      false,
+    )
+    expect(toViewConfig({}, DEFAULT_VISIBLE).collapseEmptyGroups).toBeUndefined()
   })
 
   // wrapCells 도 boolean 이므로 `!== undefined` 가드 필수 — false(토글 OFF) 명시값을 보존해야 한다.

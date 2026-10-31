@@ -2,7 +2,7 @@
  * Collections — ProjectedPeekPanel (투영 문서 사이드보기 쉘)
  *
  * 포털 + 스크림 + 사이드/모달 토글. 패널 폭·높이가 임의값 유틸리티
- * (`max-w-[min(560px,92vw)]`, `h-[86vh]`, `w-[min(960px,94vw)]`)에 걸려 있어서, 그 규칙이
+ * (`h-[86vh]`, `w-[min(960px,94vw)]`, 사이드 폭은 style `maxWidth`)에 걸려 있어서, 그 규칙이
  * 생성되지 않으면 패널이 화면 전체를 먹거나 0폭으로 접힌다 — 어느 쪽도 단위 테스트는 못 본다.
  *
  * 열림 방식은 localStorage(`montize:peek-mode`)에 기억되므로, 스토리마다 그 키를 지워
@@ -95,4 +95,9 @@ export const WithoutTitle: Story = {
 /** target=null → 아무것도 렌더하지 않는다(닫힘). */
 export const Closed: Story = {
   args: { target: null },
+}
+
+/** 좁은 미리보기(sideWidth 400) — 목록 행 미리보기처럼 속성 몇 줄 + 짧은 표. 뒤 목록이 더 남는다. */
+export const NarrowSide: Story = {
+  args: { sideWidth: 400 },
 }

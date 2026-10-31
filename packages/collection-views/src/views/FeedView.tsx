@@ -98,7 +98,7 @@ export const FeedView: FC<ViewSurfaceProps> = ({
             title={titleText}
             displayProps={displayProps}
             size="L"
-            onOpen={onOpen ? () => onOpen(row.id) : undefined}
+            onOpen={onOpen ? (e) => onOpen(row.id, e) : undefined}
           />
         )
       })}

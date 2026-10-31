@@ -8,11 +8,13 @@ import {
   Button,
   CalendarDays,
   Check,
+  Checkbox,
   ChevronRight,
   EyeOff,
   FileText,
   Hash,
   Input,
+  LayoutDashboard,
   Link2,
   List,
   Lock,
@@ -37,15 +39,25 @@ import {
   Tags,
   Trash2,
   Type,
+  User,
+  Users,
   beginListReorder,
   cn,
+  formatPhoneNumber,
   reorderArray,
   type LucideIcon,
 } from '@oobleck/systheme'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { AGGREGATION_LABEL, computeAggregation } from '@oobleck/collection'
-import { conditionalFormatClassName, resolveCellFormat } from '@oobleck/collection'
+import { applyViewColumnWidths, clampColumnWidth } from '@oobleck/collection'
+import {
+  aggregationTone,
+  conditionalFormatClassName,
+  resolveCellFormat,
+  textFormatClassName,
+  type ConditionalFormatTone,
+} from '@oobleck/collection'
 import { formatDateValueDisplay } from '@oobleck/collection'
 import { useCollectionLocale } from '../i18n'
 import { isOptionColorEditable, normalizeOptions, resolveOptionColor } from '@oobleck/collection'
@@ -54,8 +66,17 @@ import { applyRowOrder, isButtonValue, isTagValue, viewRows, type Row } from '@o
 import { CellEditor, DateCellEditor, GeoCellEditor } from './CellEditor'
 import { isSortableType } from './filter-builder'
 import { formatGeoLabel, isGeoValue } from '@oobleck/collection'
+import { PersonCell, PersonValue } from './PersonCell'
 import { RelationCell } from './RelationCell'
+import { StructCell } from './StructCell'
+import { formatUnitNumber, parseUnitNumberInput } from '@oobleck/collection'
+import {
+  CollectionStatusBlock,
+  isBlockingStatus,
+  type CollectionViewStatus,
+} from './CollectionStatus'
 import { RowActionMenu } from './row-action-menu'
+import { openClickHandlers } from './open-click'
 import { tableViewCopy } from './TableView.messages'
 
 import type { AggregationScope, QueryMode } from '@oobleck/collection'
@@ -65,7 +86,9 @@ import type {
   BasePropertyType,
   BlockPack,
   CellRenderContext,
+  ColumnToggle,
   ColumnWidth,
+  NumberUnit,
   PropertyDef,
   PropertyType,
   PropertyValue,
@@ -183,9 +206,15 @@ export type TableViewProps<P> = {
   onAddProperty?: (def: BasePropertyDef) => void
   /**
    * 컬럼 폭 변경 콜백 — 헤더 우측 엣지 드래그 리사이즈(노션식). 미지정 시 리사이즈 핸들 비표시.
-   * 인자: 컬럼 키, 새 폭(px). 상위는 PropertyDef.width = { mode:'fixed', px } 형태로 영속한다.
+   * 인자: 컬럼 키, 새 폭(px, 60~800 클램프 후). 상위는 뷰 설정 `columnWidths` 에 영속하고(뷰별),
+   * 표는 그 값을 PropertyDef.width 위에 `{ mode:'fixed', px }` 로 덮어 그린다(applyViewColumnWidths).
    */
   onColumnResize?: (key: string, px: number) => void
+  /**
+   * 컬럼 폭 초기화 — 리사이즈 핸들 더블클릭(노션식). 상위는 뷰의 columnWidths 에서 그 키를 지워
+   * 스키마 폭(자동/기본)으로 되돌린다. 미지정 시 더블클릭은 아무 일도 하지 않는다.
+   */
+  onColumnResetWidth?: (key: string) => void
   /**
    * 컬럼 순서 변경 콜백 — 헤더 왼쪽 ⠿ 그립으로 가로 드래그 스왑(노션식). 미지정 시 그립 비표시.
    * 인자: 드롭 후 *표시 순서대로의* 컬럼 키 배열. 상위는 view.visibleProps 로 영속한다.
@@ -208,6 +237,11 @@ export type TableViewProps<P> = {
    */
   relationTargetOptions?: RelationTargetOption[]
   /**
+   * 「속성 추가」에 **사람** 타입을 보일까. 호스트가 사람 컬럼에 계정 명단(`PropertyDef.options`)을
+   * 채울 수 있을 때만 켠다 — 명단 없는 사람 컬럼은 이름을 풀 수도, 고를 수도 없다. 기본 false.
+   */
+  peopleEnabled?: boolean
+  /**
    * relation 셀의 연결 대상 열기 — (target, id). 지정 시 셀 칩에 "열기" affordance 가 켜진다(노션식 링크).
    * 미지정 시(상품 등) 칩은 편집만(현행 동작 불변). 워크스페이스는 연결된 인스턴스 행 페이지로 이동한다.
    */
@@ -228,6 +262,13 @@ export type TableViewProps<P> = {
    */
   onDeleteProperty?: (key: string) => void
   /**
+   * 타입별 설정 창 열기(base 컬럼의 구조 속성 칸 · 배치, 수 단위) — 지정 시 머리 메뉴에 항목이 켜진다.
+   * 창(저작 폼 `StructConfigForm`)과 저장은 호스트 몫이다.
+   */
+  onConfigureProperty?: (key: string) => void
+  /** 「+」 속성 추가에 구조 속성 타입과 수 단위를 보일까. 호스트가 둘을 저장할 수 있을 때만. 기본 false. */
+  structEnabled?: boolean
+  /**
    * (플라톤) 프로토타입(Form) 편집 모드 — true 면 상속 컬럼이 잠금 표시(🔒) 대신 *편집 가능*이 되고, base
    * 컬럼 메뉴에 "상속(Form) 지정/해제"가 노출된다. 미지정/false=일반 편집(상속 컬럼 잠금).
    */
@@ -235,13 +276,41 @@ export type TableViewProps<P> = {
   /** base 컬럼의 상속(inherited) 토글 — Form 모드에서만 메뉴에 노출. (key). */
   onToggleInherited?: (key: string) => void
   /**
+   * 머리 메뉴의 켜고 끄는 설정 — 컬럼마다 호스트가 줄을 정한다(없으면 빈 배열). 예: 커스텀 속성의 「콜 기록으로만 수정」.
+   * 미지정 = 메뉴에 설정 줄 없음(현행).
+   */
+  columnToggles?: (def: PropertyDef) => readonly ColumnToggle[]
+  /**
    * 컬럼 헤더(thead)를 세로 sticky 로 — 스크롤해도 헤더 행이 상단에 남는다(노션식).
    * 전제: 가로·세로 스크롤을 모두 소유하는 overflow-auto 조상 컨테이너 안에서 렌더될 것.
    * (켜면 표 자체의 가로 스크롤 래퍼가 꺼지고 그 조상이 가로 스크롤도 담당한다 — DS Table 참조.)
    * 임베드 표(InlineTable 등)처럼 컨테이너를 보장할 수 없는 곳은 기본값(off) 그대로 둘 것.
    */
   stickyHeader?: boolean
+  /**
+   * 본문 불러오기 상태 — loading·error 면 컬럼 머리는 그대로 두고 행 자리(한 칸 colSpan)에 상태 블록을 그린다.
+   * 빈 자리표시 행·footer 집계·「+ 새 항목」은 그리지 않는다(0행이 아니라 아직 모르는 것이다). 미지정 = 준비됨.
+   */
+  status?: CollectionViewStatus
+  /**
+   * 행 선택(체크박스) — 지정하면 맨 앞에 체크박스 열이 선다(노션·허브스팟식). 선택은 호스트가 소유한다:
+   * 표는 지금 그린 행의 id 만 더하고 빼며, 다른 페이지에서 고른 id 는 건드리지 않는다(서버 페이지 목록에서
+   * 페이지를 넘겨도 선택이 이어진다). 머리 체크박스 = 지금 보이는 행 전체. Shift+클릭 = 마지막으로 누른 행부터 범위.
+   * 미지정 = 체크박스 열 없음(현행).
+   */
+  selection?: RowSelection
 }
+
+/** 행 선택 상태 — 고른 id 집합과 바꾸는 콜백. 표는 새 집합을 만들어 넘긴다(받은 집합을 고치지 않는다). */
+export type RowSelection = {
+  selected: ReadonlySet<string>
+  onChange: (next: ReadonlySet<string>) => void
+}
+
+/** 체크박스 열 폭(px) — 고정 열(그립·제목)의 sticky left 오프셋 계산에도 쓴다. */
+const SELECT_COL_PX = 36
+/** 행 이동 그립 열 폭(px, w-8). */
+const GRIP_COL_PX = 32
 
 /** 프로퍼티 타입 → 헤더 아이콘(노션식). 컬럼이 어떤 타입(=어떤 편집)을 갖는지 한눈에 보이게. */
 const TYPE_ICON: Record<PropertyType, LucideIcon> = {
@@ -257,6 +326,9 @@ const TYPE_ICON: Record<PropertyType, LucideIcon> = {
   phone: Phone,
   geo: MapIcon,
   button: MousePointerClick, // 액션 버튼 컬럼(클릭 어포던스)
+  person: User,
+  multi_person: Users,
+  struct: LayoutDashboard, // 구조 속성 — 여러 칸을 한 모양으로
 }
 
 /** 표시 대상 컬럼 — view.visibleProps 가 있으면 그 키·순서로, 없으면 스키마 전체. */
@@ -386,14 +458,20 @@ function TextCell({
 }: {
   value: PropertyValue
   onChange: (v: PropertyValue) => void
-  type: 'text' | 'url'
+  type: 'text' | 'url' | 'phone'
 }) {
   const c = tableViewCopy(useCollectionLocale())
   const text = asText(value)
+  // phone: 닫힌 표면만 하이픈 서식. 편집 입력·커밋 값은 저장값 그대로(검색·tel: 과 같은 원문).
+  const phoneDisplay =
+    type === 'phone' && text ? (
+      <span className="min-w-0 truncate tabular-nums text-fg">{formatPhoneNumber(text)}</span>
+    ) : undefined
   return (
     <CellEditor
       value={text}
-      type={type}
+      type={type === 'url' ? 'url' : 'text'}
+      display={phoneDisplay}
       placeholder={c.inputPlaceholder}
       ariaLabel={c.cellEditAria}
       onCommit={(next) => {
@@ -408,25 +486,31 @@ function TextCell({
 function NumberCell({
   value,
   onChange,
+  unit,
 }: {
   value: PropertyValue
   onChange: (v: PropertyValue) => void
+  /** 속성 단위 — 「95만」처럼 붙여 보이고, 「190만」「1,900,000원」 입력을 이 단위로 읽는다. */
+  unit?: NumberUnit
 }) {
   const c = tableViewCopy(useCollectionLocale())
-  const text = typeof value === 'number' ? String(value) : ''
+  const text =
+    typeof value === 'number' ? (unit ? formatUnitNumber(value, unit) : String(value)) : ''
   return (
     <CellEditor
       value={text}
       placeholder={c.numberPlaceholder}
       ariaLabel={c.numberCellEditAria}
       onCommit={(next) => {
-        const t = next.trim()
-        if (t === '') {
-          onChange(null)
+        const parsed = parseUnitNumberInput(next, unit)
+        // 만 원 칸에 원처럼 큰 수 — 그대로 두면 「190만 → 1900000만」 같은 값이 남는다. 바로 묻는다.
+        if (parsed.suspect && parsed.value !== null) {
+          const asManwon = parsed.value / 10000
+          const ok = window.confirm(c.manwonSuspect(formatUnitNumber(asManwon, 'manwon')))
+          onChange(ok ? asManwon : parsed.value)
           return
         }
-        const n = Number(t)
-        onChange(Number.isFinite(n) ? n : null)
+        onChange(parsed.value)
       }}
     />
   )
@@ -473,9 +557,12 @@ function ReadonlyCell({ def, value }: { def: PropertyDef; value: PropertyValue }
       if (!v) return <span className="text-fg-muted">—</span>
       // 노션식 색 칩 — 옵션 명시색(있으면) 또는 값 해시색. 편집형 SelectCell·카드(record-card)와 동일
       // 규칙(resolveOptionColor)이라 한 값이 표·카드·그룹 헤더 어디서나 같은 색을 갖는다.
+      // 좁은 컬럼에서는 라벨만 말줄임(…) — 칩이 셀 밖으로 삐져나가 옆 컬럼을 덮지 않게(사람 칩과 같은 규칙).
       return (
-        <Tag color={resolveOptionColor(def, v)} size="sm">
-          {optionLabelOf(def, v)}
+        <Tag color={resolveOptionColor(def, v)} size="sm" className="max-w-full">
+          <span className="min-w-0 truncate" title={optionLabelOf(def, v)}>
+            {optionLabelOf(def, v)}
+          </span>
         </Tag>
       )
     }
@@ -485,21 +572,30 @@ function ReadonlyCell({ def, value }: { def: PropertyDef; value: PropertyValue }
       // 읽기전용 멀티셀렉트는 전부 표시(wrap) — 칩이 잘리면 +N 인디케이터 없이 데이터가 조용히 은폐되므로
       // 클리핑하지 않는다(노션식 셀 클리핑은 +N 측정이 가능한 편집형 MultiSelectCell 에만 적용).
       return (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex min-w-0 flex-wrap gap-1">
           {items.map((t) => (
-            <Tag key={t} color={resolveOptionColor(def, t)} size="sm">
-              {optionLabelOf(def, t)}
+            <Tag key={t} color={resolveOptionColor(def, t)} size="sm" className="max-w-full">
+              <span className="min-w-0 truncate" title={optionLabelOf(def, t)}>
+                {optionLabelOf(def, t)}
+              </span>
             </Tag>
           ))}
         </div>
       )
     }
+    case 'person':
+    case 'multi_person':
+      return <PersonValue def={def} value={value} />
     case 'checkbox':
       return <span className="text-fg">{value === true ? '✓' : '—'}</span>
     case 'number':
       return (
         <span className="tabular-nums text-fg">
-          {typeof value === 'number' ? value.toLocaleString('ko-KR') : '—'}
+          {typeof value === 'number'
+            ? def.unit
+              ? formatUnitNumber(value, def.unit)
+              : value.toLocaleString('ko-KR')
+            : '—'}
         </span>
       )
     case 'url': {
@@ -533,22 +629,26 @@ function ReadonlyCell({ def, value }: { def: PropertyDef; value: PropertyValue }
     case 'phone': {
       const phone = asText(value)
       if (!phone) return <span className="text-fg-muted">—</span>
+      // 표시만 하이픈 서식(010-1234-5678). tel: 은 저장값 그대로 — 다이얼러는 숫자만 읽는다.
       return (
         <a
           data-table-row-stop
           href={`tel:${phone}`}
-          className="truncate text-fg underline-offset-2 hover:underline"
+          className="truncate tabular-nums text-fg underline-offset-2 hover:underline"
         >
-          {phone}
+          {formatPhoneNumber(phone)}
         </a>
       )
     }
     case 'date': {
       const raw = asText(value)
-      const label = raw ? formatDateValueDisplay(raw) : ''
+      const label = raw ? formatDateValueDisplay(raw, def.dateFormat) : ''
       // 표시 불가(빈/파싱 실패)면 원문 폴백 후 '—'. 단일/기간/시간 모두 formatDateValueDisplay 가 처리.
+      // 날짜는 한 줄 — 칸이 좁아도 「2026. 10.」/「21.」로 꺾여 행이 두 줄이 되지 않게(넘치면 말줄임, 전체는 title).
       return label ? (
-        <span className="text-fg">{label}</span>
+        <span className="block truncate whitespace-nowrap text-fg" title={label}>
+          {label}
+        </span>
       ) : raw ? (
         <span className="text-fg">{raw}</span>
       ) : (
@@ -635,9 +735,10 @@ function TitleCell({
         ) : (
           // 읽기전용 제목 = 상세로 가는 링크. data-table-row-stop 은 두지 않는다 —
           // 이 버튼 자체가 여는 동작이라 행 활성화와 충돌하지 않는다.
+          // 가운데 클릭(auxclick)도 같은 열기로 — 호스트가 새 탭으로 읽는다(openClickHandlers).
           <button
             type="button"
-            onClick={(e) => onOpen(e)}
+            {...openClickHandlers(onOpen)}
             className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline focus-visible:underline focus-visible:outline-none"
           >
             {titleBody}
@@ -830,6 +931,7 @@ export function Cell({
   onAction,
   wrapCells,
   renderContext,
+  emptyMark = false,
 }: {
   def: PropertyDef
   value: PropertyValue
@@ -849,16 +951,63 @@ export function Cell({
   onOpenRelation?: (id: string) => void
   /** 버튼 프로퍼티 클릭(action) — 행 id 는 상위(row 루프)가 바인딩해 내려준다. */
   onAction?: (action: string) => void
-  /** true 면 편집형 multi_select 셀의 칩 클리핑(max-h-8)을 해제해 줄바꿈 허용. 기본 false(현행 클리핑 동작 불변). */
+  /**
+   * true 면 편집형 multi_select·relation 셀의 칩 한 줄 클리핑을 해제해 줄바꿈 허용. 기본 false —
+   * 한 줄로 자르고 숨은 개수를 「+N」으로 적는다(행 높이가 칩 수에 따라 출렁이지 않게).
+   */
   wrapCells?: boolean
+  /**
+   * 조건부 서식이 이 칸을 상태 색으로 칠했다 — 편집형 관계 칸이 비었으면 평소의 빈 자리 대신 「—」를 적는다
+   * (손댈 때는 「관계 선택」 안내로 바뀐다). 읽기 전용 칸은 원래 「—」라 영향이 없다.
+   */
+  emptyMark?: boolean
 }) {
   // 커스텀 렌더러가 있으면 그것이 전부다 — 타입별 렌더·format·편집 컨트롤보다 앞선다.
   // (코드가 소유한 표현이라 플랫폼이 덧그리거나 대체하지 않는다. 편집이 필요하면 렌더러 안에서 한다.)
   if (def.render && renderContext) return <>{def.render(value, renderContext)}</>
+  // 구조 속성 — 자기 값이 없다. 행의 다른 칸에서 읽고, 고치면 그 칸을 고친다(renderContext.edit).
+  if (def.type === 'struct')
+    return renderContext ? (
+      <StructCell
+        def={def}
+        props={renderContext.props}
+        schema={renderContext.schema ?? []}
+        {...(renderContext.edit ? { edit: renderContext.edit } : {})}
+        renderField={(fieldDef, fieldValue, fieldChange) => (
+          <Cell
+            def={fieldDef}
+            value={fieldValue}
+            {...(fieldChange ? { onChange: fieldChange } : {})}
+          />
+        )}
+      />
+    ) : (
+      <span className="text-fg-muted">—</span>
+    )
   // 버튼은 편집형/읽기전용 구분 밖의 액션 셀 — projection 이지만 인터랙티브(클릭=onAction).
   if (def.type === 'button') return <ButtonCell value={value} onAction={onAction} />
   const editable = def.source === 'frontmatter' && !!onChange
-  if (!editable) return <ReadonlyCell def={def} value={value} />
+  // 읽기 전용 관계 — provider 가 있으면 id 를 라벨 칩으로 푼다(편집형과 같은 칩, ✕·고르기 패널 없음).
+  // 없으면 아래 평문 폴백(id 를 그대로 적는다).
+  if (!editable && def.type === 'relation' && relationProvider)
+    return (
+      <RelationCell
+        cardinality={def.relation?.cardinality ?? 'one'}
+        value={value}
+        provider={relationProvider}
+        onOpen={onOpenRelation}
+        wrap={wrapCells}
+      />
+    )
+  if (!editable)
+    return def.readOnlyReason ? (
+      // 왜 못 고치나를 칸 위에서 말한다(머리의 자물쇠와 같은 글).
+      <div title={def.readOnlyReason}>
+        <ReadonlyCell def={def} value={value} />
+      </div>
+    ) : (
+      <ReadonlyCell def={def} value={value} />
+    )
   // 옵션 있는 select = 태그+메뉴, 옵션 없는 select = 자유 텍스트, multi_select = 노션식 멀티셀렉트,
   // text/url = 인라인 텍스트, relation = 자동완성(provider 있을 때만), date = 달력, checkbox = 토글.
   // 옵션이 **아직 없어도** 옵션을 만들 수 있으면(onOptionsChange) 선택 셀로 연다.
@@ -879,6 +1028,8 @@ export function Cell({
         wrapCells={wrapCells}
       />
     )
+  if (def.type === 'person' || def.type === 'multi_person')
+    return <PersonCell def={def} value={value} onChange={onChange} />
   if (def.type === 'relation' && relationProvider) {
     return (
       <RelationCell
@@ -887,12 +1038,18 @@ export function Cell({
         provider={relationProvider}
         onChange={onChange}
         onOpen={onOpenRelation}
+        wrap={wrapCells}
+        emptyMark={emptyMark}
       />
     )
   }
-  if (def.type === 'number') return <NumberCell value={value} onChange={onChange} />
+  if (def.type === 'number')
+    return (
+      <NumberCell value={value} onChange={onChange} {...(def.unit ? { unit: def.unit } : {})} />
+    )
   if (def.type === 'checkbox') return <CheckboxCell value={value} onChange={onChange} />
-  if (def.type === 'date') return <DateCellEditor value={asText(value)} onCommit={onChange} />
+  if (def.type === 'date')
+    return <DateCellEditor value={asText(value)} onCommit={onChange} format={def.dateFormat} />
   if (def.type === 'geo')
     return <GeoCellEditor value={isGeoValue(value) ? value : null} onCommit={onChange} />
 
@@ -903,7 +1060,13 @@ export function Cell({
     def.type === 'email' ||
     def.type === 'phone'
   )
-    return <TextCell value={value} onChange={onChange} type={def.type === 'url' ? 'url' : 'text'} />
+    return (
+      <TextCell
+        value={value}
+        onChange={onChange}
+        type={def.type === 'url' || def.type === 'phone' ? def.type : 'text'}
+      />
+    )
   return <ReadonlyCell def={def} value={value} />
 }
 
@@ -980,6 +1143,8 @@ function ColumnHeader({
   onDelete,
   onToggleInherited,
   onOptionColorChange,
+  toggles = [],
+  onConfigure,
 }: {
   def: PropertyDef
   sort: Sort[]
@@ -997,9 +1162,12 @@ function ColumnHeader({
   onToggleInherited?: () => void
   /** 선택지 색 — 지정 시 메뉴에 "선택지 색" 목록이 켜진다(팀 공통 설정). */
   onOptionColorChange?: (value: string, color: string | undefined) => void
+  /** 켜고 끄는 설정 줄(호스트가 정한다) — 있으면 메뉴의 편집 동작 아래에 선다. */
+  toggles?: readonly ColumnToggle[]
+  /** 타입별 설정(구조 속성의 칸 · 배치, 수의 단위) — 지정 시 메뉴에 그 항목이 켜진다. 창은 호스트가 연다. */
+  onConfigure?: () => void
 }) {
   const c = tableViewCopy(useCollectionLocale())
-  const Icon = TYPE_ICON[def.type] ?? Type
   const currentSort = sort.find((s) => s.key === def.key)
   const SortIndicator =
     currentSort?.dir === 'asc' ? ArrowUp : currentSort?.dir === 'desc' ? ArrowDown : null
@@ -1021,11 +1189,16 @@ function ColumnHeader({
   }
 
   const labelNode = (
+    // 머리는 이름만 — 칸마다 붙던 형식 아이콘(T·목록·전화…)은 표를 훑을 때 잡음이었다(시안 대조 R6).
+    // 형식은 머리 메뉴의 「속성 형식」에서 본다.
     <span className="inline-flex items-center gap-1.5">
-      <Icon className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
       {def.label}
       {locked ? (
         <Lock className="size-3 shrink-0 text-fg-muted" aria-label={c.inheritedLockedAria} />
+      ) : def.readOnlyReason ? (
+        <Lock className="size-3 shrink-0 text-fg-muted" aria-label={def.readOnlyReason}>
+          <title>{def.readOnlyReason}</title>
+        </Lock>
       ) : null}
       {SortIndicator ? (
         <SortIndicator className="size-3 shrink-0 text-fg-muted" aria-hidden />
@@ -1048,7 +1221,6 @@ function ColumnHeader({
     return (
       <span className="inline-flex items-center gap-1">
         {gripNode}
-        <Icon className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
         <input
           autoFocus
           value={draft}
@@ -1076,6 +1248,7 @@ function ColumnHeader({
     !!onChangeType ||
     !!onDelete ||
     !!onToggleInherited ||
+    toggles.length > 0 ||
     !!onOptionColorChange
   if (!hasMenu) {
     if (!gripNode) return labelNode
@@ -1117,41 +1290,44 @@ function ColumnHeader({
             {c.selectType}
           </div>
           <div className="max-h-72 overflow-y-auto py-1">
-            {ADD_PROPERTY_TYPES.filter((t) => t.value !== 'relation').map((t) => {
-              const TIcon = TYPE_ICON[t.value] ?? Type
-              const isCurrent = def.type === t.value
-              return (
-                <button
-                  key={t.value}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    onChangeType(t.value)
-                    setTypeMenuOpen(false)
-                    setMenuOpen(false)
-                  }}
-                  className={cn(
-                    'flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-surface',
-                    isCurrent && 'bg-surface',
-                  )}
-                >
-                  <span
+            {/* 사람으로 바꾸는 길은 두지 않는다 — 기존 값(이름 문자열)을 계정 id 로 옮길 방법이 없다. */}
+            {ADD_PROPERTY_TYPES.filter((t) => t.value !== 'relation' && t.value !== 'person').map(
+              (t) => {
+                const TIcon = TYPE_ICON[t.value] ?? Type
+                const isCurrent = def.type === t.value
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onChangeType(t.value)
+                      setTypeMenuOpen(false)
+                      setMenuOpen(false)
+                    }}
                     className={cn(
-                      'inline-flex size-5 shrink-0 items-center justify-center rounded',
-                      isCurrent ? 'bg-primary/15 text-primary' : 'bg-border/50 text-fg-muted',
+                      'flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-surface',
+                      isCurrent && 'bg-surface',
                     )}
                   >
-                    <TIcon className="size-3.5" aria-hidden />
-                  </span>
-                  <span className={cn('text-sm', isCurrent ? 'font-medium text-fg' : 'text-fg')}>
-                    {c.typeLabel(t.value)}
-                  </span>
-                  {isCurrent && (
-                    <Check className="ml-auto size-3.5 shrink-0 text-primary" aria-hidden />
-                  )}
-                </button>
-              )
-            })}
+                    <span
+                      className={cn(
+                        'inline-flex size-5 shrink-0 items-center justify-center rounded',
+                        isCurrent ? 'bg-primary/15 text-primary' : 'bg-border/50 text-fg-muted',
+                      )}
+                    >
+                      <TIcon className="size-3.5" aria-hidden />
+                    </span>
+                    <span className={cn('text-sm', isCurrent ? 'font-medium text-fg' : 'text-fg')}>
+                      {c.typeLabel(t.value)}
+                    </span>
+                    {isCurrent && (
+                      <Check className="ml-auto size-3.5 shrink-0 text-primary" aria-hidden />
+                    )}
+                  </button>
+                )
+              },
+            )}
           </div>
         </div>
       }
@@ -1199,6 +1375,13 @@ function ColumnHeader({
               />
             )}
             {typeSubmenu}
+            {onConfigure && (
+              <MenuRow
+                icon={<LayoutDashboard className="size-3.5" aria-hidden />}
+                label={def.type === 'struct' ? c.configureStruct : c.configureUnit}
+                onClick={() => runAndClose(onConfigure)}
+              />
+            )}
             {/* (Form 모드) 상속(프로토타입 Form) 지정/해제 — 본질 컬럼으로 고정하거나 자유 컬럼으로 되돌린다. */}
             {onToggleInherited && (
               <MenuRow
@@ -1207,6 +1390,16 @@ function ColumnHeader({
                 onClick={() => runAndClose(onToggleInherited)}
               />
             )}
+            {toggles.map((t) => (
+              <MenuRow
+                key={t.id}
+                icon={<Lock className="size-3.5" aria-hidden />}
+                label={t.label}
+                {...(t.description ? { description: t.description } : {})}
+                selected={t.checked}
+                onClick={() => runAndClose(t.onToggle)}
+              />
+            ))}
             {/* 정렬 */}
             {onSortChange && (
               <>
@@ -1391,10 +1584,13 @@ function FooterCell({
   onChange,
   scope = 'all',
   totalCount,
+  tone = null,
 }: {
   values: (PropertyValue | undefined)[]
   type: AggregationType
   onChange?: (next: AggregationType) => void
+  /** 숫자의 상태 색 — 센 칸들의 조건부 서식 색(aggregationTone). null = 본문 글자색. */
+  tone?: ConditionalFormatTone | null
   /** 이 집계가 무엇을 세는가 — 'page' 면 결과에 범위를 붙여 표시한다(headless.ts 참조). */
   scope?: AggregationScope
   /** 전체 행 수(서버가 알려준 경우). 행 수 계열 집계는 이 값이 있으면 그걸 쓴다. */
@@ -1429,8 +1625,25 @@ function FooterCell({
   const display =
     type === 'none' ? '' : `${prefix} ${result}${pageScoped ? ` ${c.scopePage}` : ''}`.trim()
 
+  // 라벨(무엇을 셌나)은 흐리게, 값은 본문 글자로 — 「전체 수 41」에서 읽을 것은 숫자다.
+  const labelled =
+    type === 'none' ? null : (
+      <span className="inline-flex items-baseline gap-1.5">
+        <span className="text-xs text-fg-muted">{prefix}</span>
+        <span
+          className={cn(
+            'text-sm font-semibold tabular-nums',
+            tone ? textFormatClassName({ tone }) : 'text-fg',
+          )}
+        >
+          {result}
+        </span>
+        {pageScoped && <span className="text-xs text-fg-muted">{c.scopePage}</span>}
+      </span>
+    )
+
   if (!onChange) {
-    return <span className="text-xs text-fg-muted">{display}</span>
+    return <span title={display || undefined}>{labelled}</span>
   }
 
   // 포털 패널 — 표 하단 가장자리에서 열려도 overflow 박스에 잘리지 않는다(D-8).
@@ -1456,7 +1669,7 @@ function FooterCell({
               : 'text-fg-muted hover:text-fg',
           )}
         >
-          {type === 'none' ? c.calculate : display}
+          {type === 'none' ? c.calculate : labelled}
         </button>
       }
       panel={
@@ -1478,6 +1691,13 @@ function FooterCell({
   )
 }
 
+/** 수 단위 고르기 — 없음 · 원 · 만 원. */
+const UNIT_CHOICES: { value: NumberUnit | undefined; label: string }[] = [
+  { value: undefined, label: '단위 없음' },
+  { value: 'won', label: '원' },
+  { value: 'manwon', label: '만 원' },
+]
+
 type PropertyTypeEntry = {
   value: BasePropertyType
   group: 'basic' | 'contact' | 'advanced'
@@ -1492,11 +1712,13 @@ const ADD_PROPERTY_TYPES: PropertyTypeEntry[] = [
   { value: 'multi_select', group: 'basic' },
   { value: 'date', group: 'basic' },
   { value: 'checkbox', group: 'basic' },
+  { value: 'person', group: 'basic' },
   { value: 'url', group: 'basic' },
   { value: 'email', group: 'contact' },
   { value: 'phone', group: 'contact' },
   { value: 'relation', group: 'advanced' },
   { value: 'geo', group: 'advanced' },
+  { value: 'struct', group: 'advanced' },
 ]
 
 /**
@@ -1507,10 +1729,16 @@ const ADD_PROPERTY_TYPES: PropertyTypeEntry[] = [
 function AddPropertyHeader({
   onAddProperty,
   relationTargets,
+  peopleEnabled,
+  structEnabled,
 }: {
   onAddProperty: (def: BasePropertyDef) => void
   /** 연결 대상 후보(value=target, label=표시명). value=label 인 경우가 일반(상품), 워크스페이스는 노드 id↔DB 이름. */
   relationTargets: RelationTargetOption[]
+  /** 사람 타입을 보일까 — TableView 의 동명 prop. */
+  peopleEnabled: boolean
+  /** 구조 속성 · 수 단위를 보일까 — TableView 의 동명 prop. */
+  structEnabled: boolean
 }) {
   const c = tableViewCopy(useCollectionLocale())
   const [open, setOpen] = useState(false)
@@ -1518,9 +1746,13 @@ function AddPropertyHeader({
   const [type, setType] = useState<BasePropertyType>('text')
   const [target, setTarget] = useState<string>(relationTargets[0]?.value ?? '')
   const [cardinality, setCardinality] = useState<'one' | 'many'>('one')
+  const [unit, setUnit] = useState<NumberUnit | undefined>(undefined)
 
   const availableTypes = ADD_PROPERTY_TYPES.filter(
-    (t) => t.value !== 'relation' || relationTargets.length > 0,
+    (t) =>
+      (t.value !== 'relation' || relationTargets.length > 0) &&
+      (t.value !== 'person' || peopleEnabled) &&
+      (t.value !== 'struct' || structEnabled),
   )
 
   const groups = ['basic', 'contact', 'advanced'] as const
@@ -1528,6 +1760,7 @@ function AddPropertyHeader({
   const reset = () => {
     setLabel('')
     setType('text')
+    setUnit(undefined)
   }
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
@@ -1539,11 +1772,15 @@ function AddPropertyHeader({
     if (!trimmed) return
     const isRelation = type === 'relation'
     if (isRelation && !target) return
+    // 사람은 피커에서 한 칸이고, 한 명/여러 명은 아래 토글이 가른다(relation 카디널리티와 같은 자리).
+    const resolvedType: BasePropertyType =
+      type === 'person' && cardinality === 'many' ? 'multi_person' : type
     onAddProperty({
       key: slugifyKey(trimmed),
       label: trimmed,
-      type,
+      type: resolvedType,
       ...(isRelation ? { relation: { target, cardinality } } : {}),
+      ...(type === 'number' && unit ? { unit } : {}),
     })
     reset()
     setOpen(false)
@@ -1645,6 +1882,62 @@ function AddPropertyHeader({
               )
             })}
           </div>
+
+          {/* person 확장: 한 명 / 여러 명 */}
+          {type === 'person' && (
+            <>
+              <MenuDivider />
+              <div className="flex gap-1 p-3">
+                {(['one', 'many'] as const).map((card) => (
+                  <button
+                    key={card}
+                    type="button"
+                    onClick={() => setCardinality(card)}
+                    className={cn(
+                      'flex-1 rounded border px-2 py-1.5 text-xs transition-colors',
+                      cardinality === card
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-fg-muted hover:bg-surface',
+                    )}
+                  >
+                    {card === 'one' ? c.singlePerson : c.multiPerson}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* number 확장: 단위 — 금액이 원과 만 원으로 섞이지 않게 정의에 적는다 */}
+          {type === 'number' && structEnabled && (
+            <>
+              <MenuDivider />
+              <div className="flex gap-1 p-3">
+                {UNIT_CHOICES.map((u) => (
+                  <button
+                    key={u.label}
+                    type="button"
+                    onClick={() => setUnit(u.value)}
+                    className={cn(
+                      'flex-1 rounded border px-2 py-1.5 text-xs transition-colors',
+                      unit === u.value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-fg-muted hover:bg-surface',
+                    )}
+                  >
+                    {u.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* struct 확장: 칸 · 배치는 추가 뒤 호스트의 저작 창에서 고른다 */}
+          {type === 'struct' && (
+            <>
+              <MenuDivider />
+              <p className="px-3 py-2 text-xs text-fg-muted">{c.structNextStep}</p>
+            </>
+          )}
 
           {/* relation 확장: 대상 컬렉션 + 카디널리티 */}
           {type === 'relation' && (
@@ -1750,6 +2043,9 @@ const DEFAULT_WIDTH_BY_TYPE: Record<PropertyType, ColumnWidth> = {
   relation: { mode: 'fixed', px: 140 },
   geo: { mode: 'fixed', px: 200 }, // 도로명주소가 길어 url 보다 살짝 넓게
   button: { mode: 'fixed', px: 110 }, // 액션 버튼 — 짧은 라벨 기준(복원/설치 등)
+  person: { mode: 'fixed', px: 140 }, // 이니셜 + 이름 하나
+  multi_person: { mode: 'fixed', px: 200 },
+  struct: { mode: 'fixed', px: 220 }, // 「200만 → 205만 (+5만)」 한 줄
 }
 
 /**
@@ -1795,28 +2091,40 @@ export function TableView<P>({
   onColumnHide,
   onAddProperty,
   onColumnResize,
+  onColumnResetWidth,
   onColumnReorder,
   onRenameColumn,
   renameScope = 'all',
   relations,
   relationTargetOptions,
+  peopleEnabled = false,
   onOpenRelation,
   onAggregationChange,
   onChangePropertyType,
   onDeleteProperty,
+  onConfigureProperty,
+  structEnabled = false,
   onDeleteRow,
   formMode = false,
   onToggleInherited,
+  columnToggles,
   titleVariant = 'page',
   queryMode = 'client',
   totalCount,
   stickyHeader = false,
+  status,
+  selection,
 }: TableViewProps<P>) {
   const copy = tableViewCopy(useCollectionLocale())
   // onCreate 트리거 행 라벨 — 미지정 시 로캘 기본("+ 새 항목"/"+ New item"/"+ 新建项").
   const resolvedCreateLabel = createLabel ?? copy.createDefault
   // 컬럼 정의 = 컬렉션 스키마 오버라이드(있으면) 또는 팩 기본.
-  const propertySchema = schema ?? pack.propertySchema
+  // 뷰가 기억하는 폭(columnWidths)은 스키마 폭 위에 덮는다 — 같은 화면이라도 뷰마다 폭이 다르다.
+  const baseSchema = schema ?? pack.propertySchema
+  const propertySchema = useMemo(
+    () => applyViewColumnWidths(baseSchema, view.columnWidths),
+    [baseSchema, view.columnWidths],
+  )
   const columns = useMemo(() => visibleColumns(propertySchema, view), [propertySchema, view])
 
   // 문서 단위 잠금 — locked 문서는 제목 인라인 편집 비활성(D-8 통합 Document 플래그).
@@ -1854,6 +2162,47 @@ export function TableView<P>({
     queryMode === 'client' &&
     view.sort.length === 0 &&
     view.filters.children.length === 0
+
+  // 맨 앞 고정 열들 — [체크박스][그립][제목]. 제목·그립의 sticky left 는 앞에 선 열 폭의 합이다.
+  const selectable = !!selection
+  const gripLeft = selectable ? SELECT_COL_PX : 0
+  const titleLeft = gripLeft + (reorderable ? GRIP_COL_PX : 0)
+  const leadCols = (selectable ? 1 : 0) + (reorderable ? 1 : 0)
+
+  // 선택 — 지금 그린 행 기준. Shift+클릭 범위의 기준점은 마지막으로 누른 행 id(인덱스는 정렬이 바뀌면 어긋난다).
+  const selectionAnchor = useRef<string | null>(null)
+  const visibleIds = useMemo(() => sorted.map((r) => r.id), [sorted])
+  const selectedVisible = selection
+    ? visibleIds.filter((id) => selection.selected.has(id)).length
+    : 0
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisible === visibleIds.length
+  const toggleAllVisible = (on: boolean) => {
+    if (!selection) return
+    const next = new Set(selection.selected)
+    for (const id of visibleIds) {
+      if (on) next.add(id)
+      else next.delete(id)
+    }
+    selectionAnchor.current = null
+    selection.onChange(next)
+  }
+  const toggleRow = (id: string, on: boolean, shiftKey: boolean) => {
+    if (!selection) return
+    const next = new Set(selection.selected)
+    const anchor = selectionAnchor.current
+    const from = anchor ? visibleIds.indexOf(anchor) : -1
+    const to = visibleIds.indexOf(id)
+    if (shiftKey && from >= 0 && to >= 0) {
+      const [a, b] = from < to ? [from, to] : [to, from]
+      for (const rid of visibleIds.slice(a, b + 1)) {
+        if (on) next.add(rid)
+        else next.delete(rid)
+      }
+    } else if (on) next.add(id)
+    else next.delete(id)
+    selectionAnchor.current = id
+    selection.onChange(next)
+  }
 
   // 집계 범위 — 클라 모드는 전량을 들고 있으니 'all'. 서버 모드는 한 페이지만 보므로 'page'
   // (단 count 는 totalCount 가 있으면 전체로 답한다 — FooterCell 이 판단).
@@ -1909,9 +2258,11 @@ export function TableView<P>({
   // 빈 상태에도 본문 placeholder 행을 N개 렌더해 테이블 셰이프(가로선)가 유지된다 — 노션처럼
   // "데이터베이스가 거기 있다" 는 형태감을 유지(헤더만 떠 있는 줄 처럼 보이지 않게).
   const EMPTY_PLACEHOLDER_ROWS = 3
+  // 로딩·오류 — 행 대신 상태 블록(0행이 아니라 아직 모르는 것이라 빈 자리표시·footer 를 그리지 않는다).
+  const blockingStatus = isBlockingStatus(status) ? status : null
   // 마지막 컬럼 1개는 숨길 수 없게 가드(노션 동일 — 모든 컬럼이 사라지면 표가 의미 없음).
   const allowHide = !!onColumnHide && columns.length > 1
-  const colSpan = columns.length + (reorderable ? 1 : 0) + (onAddProperty ? 1 : 0)
+  const colSpan = columns.length + leadCols + (onAddProperty ? 1 : 0)
   // 컬럼 폭 결정(노션식 fixed/fit/fill) — table-fixed 와 함께 사용해 콘텐츠가 컬럼을 밀어내지 않게 한다.
   // 그리드 그립(좌)과 + 컬럼(우)은 좁은 고정.
   const columnWidths = useMemo(() => resolveColumnWidths(columns), [columns])
@@ -1926,7 +2277,7 @@ export function TableView<P>({
   const [resizingWidth, setResizingWidth] = useState<{ key: string; px: number } | null>(null)
 
   // 우측 엣지 드래그 → 컬럼 폭 변경. 콜백 미지정 시 핸들 자체가 렌더되지 않으므로 가드.
-  // 60~600px 클램프(엔진 검증값(40~800)보다 좁은 UX 가이드 — 컬럼이 보이지 않을 만큼 작아지지 않게).
+  // 60~800px 클램프(clampColumnWidth — 하한은 엔진 검증값 40 보다 넉넉히, 컬럼이 보이지 않을 만큼 작아지지 않게).
   const startColumnResize = (i: number) => (e: ReactPointerEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -1939,8 +2290,7 @@ export function TableView<P>({
     const prevCursor = document.body.style.cursor
     document.body.style.cursor = 'col-resize'
     const move = (ev: PointerEvent) => {
-      const next = Math.max(60, Math.min(600, startWidth + (ev.clientX - startX)))
-      setResizingWidth({ key, px: Math.round(next) })
+      setResizingWidth({ key, px: clampColumnWidth(startWidth + (ev.clientX - startX)) })
     }
     const finish = () => {
       window.removeEventListener('pointermove', move)
@@ -1964,8 +2314,8 @@ export function TableView<P>({
     e.stopPropagation()
     if (!onColumnReorder) return
     const tbody = tbodyRef.current
-    // tbody 의 각 행에서 *데이터 컬럼* 인덱스 idx 에 해당하는 td 를 모은다. grip 가 있으면 +1 보정.
-    const bodyOffset = reorderable ? 1 : 0
+    // tbody 의 각 행에서 *데이터 컬럼* 인덱스 idx 에 해당하는 td 를 모은다. 체크박스·grip 열만큼 보정.
+    const bodyOffset = leadCols
     const collectColumnTds = (colIdx: number): HTMLElement[] => {
       if (!tbody) return []
       const result: HTMLElement[] = []
@@ -2006,7 +2356,8 @@ export function TableView<P>({
     <Table chrome="flush" density={tableDensity} stickyHeader={stickyHeader}>
       <TableFrame layout="fixed">
         <colgroup>
-          {reorderable && <col style={{ width: '32px' }} />}
+          {selectable && <col style={{ width: `${SELECT_COL_PX}px` }} />}
+          {reorderable && <col style={{ width: `${GRIP_COL_PX}px` }} />}
           {columnWidths.map((w, i) => {
             const key = columns[i].key
             // 리사이즈 진행 중인 컬럼은 임시 px 오버라이드(실시간 시각 피드백). 종료 시 onColumnResize 가 영속.
@@ -2028,11 +2379,31 @@ export function TableView<P>({
               : undefined
           }
         >
+          {selection && (
+            <TableHead
+              scope="col"
+              // 체크박스 열 sticky-left — 맨 앞. 머리 체크박스 = 지금 보이는 행 전체(부분이면 가운데 줄).
+              className="sticky left-0 z-[2] bg-surface px-0 text-center"
+              data-table-row-stop
+            >
+              <span className="flex items-center justify-center">
+                <Checkbox
+                  size="sm"
+                  aria-label={copy.selectAllRowsAria}
+                  checked={allVisibleSelected}
+                  indeterminate={selectedVisible > 0 && !allVisibleSelected}
+                  disabled={visibleIds.length === 0 || !!blockingStatus}
+                  onCheckedChange={(on) => toggleAllVisible(on)}
+                />
+              </span>
+            </TableHead>
+          )}
           {reorderable && (
             <TableHead
               scope="col"
               // 그립 컬럼 sticky-left — 타이틀 sticky 와 함께 좌측 frozen 프리픽스를 이룬다.
-              className="sticky left-0 z-[2] w-8 bg-background"
+              className="sticky z-[2] w-8 bg-surface"
+              style={{ left: gripLeft }}
               aria-label={copy.moveRowAria}
             />
           )}
@@ -2043,16 +2414,14 @@ export function TableView<P>({
               ref={(el) => {
                 colHeadEls.current[i] = el
               }}
-              // 타이틀(첫 컬럼) sticky-left — 가로 스크롤 시 항상 보이게. reorderable 이면 그립(32px) 뒤로 밀어 둠.
+              // 타이틀(첫 컬럼) sticky-left — 가로 스크롤 시 항상 보이게. 체크박스·그립 열이 있으면 그 뒤로 밀어 둠.
+              style={i === 0 ? { left: titleLeft } : undefined}
               className={cn(
                 'group/colhead relative',
                 // 고정 컬럼은 **자기 배경**을 갖는다. thead 배경에만 기대면 stickyHeader 가 꺼진
                 // 표에서 뒤 컬럼이 비쳐 보이고, 경계가 없어 어디까지가 고정인지 읽히지 않는다.
-                i === 0 &&
-                  cn(
-                    reorderable ? 'sticky left-8 z-[2]' : 'sticky left-0 z-[2]',
-                    'bg-background shadow-[1px_0_0_var(--color-border)]',
-                  ),
+                // 배경은 다른 머리 칸과 같은 surface(TableHead 기본) — 첫 칸만 흰 칸이 되지 않게.
+                i === 0 && cn('sticky z-[2]', 'bg-surface shadow-[1px_0_0_var(--color-border)]'),
               )}
             >
               <ColumnHeader
@@ -2090,6 +2459,14 @@ export function TableView<P>({
                     ? (value, color) => onOptionColorChange(c.key, value, color)
                     : undefined
                 }
+                toggles={columnToggles?.(c)}
+                onConfigure={
+                  onConfigureProperty &&
+                  c.origin === 'base' &&
+                  (c.type === 'struct' || c.type === 'number')
+                    ? () => onConfigureProperty(c.key)
+                    : undefined
+                }
               />
               {/* 우측 엣지 드래그 핸들(노션식 col-resize) — hover 시 노출. 클릭 영역은 좁지만 호버 폭은 살짝 넓힘. */}
               {onColumnResize && (
@@ -2098,6 +2475,15 @@ export function TableView<P>({
                   aria-orientation="vertical"
                   aria-label={copy.resizeColumnAria}
                   onPointerDown={startColumnResize(i)}
+                  // 더블클릭 = 기본 폭으로(노션식). 끌지 않은 두 번의 클릭은 폭을 바꾸지 않는다(finish 가 prev 없음).
+                  onDoubleClick={
+                    onColumnResetWidth
+                      ? (e) => {
+                          e.stopPropagation()
+                          onColumnResetWidth(c.key)
+                        }
+                      : undefined
+                  }
                   className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none opacity-0 transition-opacity hover:bg-primary/40 group-hover/colhead:opacity-100"
                 />
               )}
@@ -2107,6 +2493,8 @@ export function TableView<P>({
             <TableHead scope="col" className="w-10" aria-label={copy.addProperty}>
               <AddPropertyHeader
                 onAddProperty={onAddProperty}
+                peopleEnabled={peopleEnabled}
+                structEnabled={structEnabled}
                 relationTargets={
                   relationTargetOptions ??
                   (relations ? Object.keys(relations).map((k) => ({ value: k, label: k })) : [])
@@ -2116,18 +2504,25 @@ export function TableView<P>({
           )}
         </TableHeader>
         <TableBody ref={tbodyRef}>
+          {blockingStatus && (
+            <TableRow key="__status" rowId="__status">
+              <TableCell colSpan={colSpan}>
+                <CollectionStatusBlock status={blockingStatus} />
+              </TableCell>
+            </TableRow>
+          )}
           {/*
            * 빈 상태에서만 시각적 placeholder 행(아래쪽). 데이터가 있으면 "+ {createLabel}" 행만 마지막에 항상 표시.
            * 노션 데이터베이스 동일 패턴 — 항상 마지막 행에 새 항목 생성 affordance 가 있다.
            */}
-          {sorted.length === 0
+          {sorted.length === 0 && !blockingStatus
             ? Array.from({ length: EMPTY_PLACEHOLDER_ROWS - (onCreate ? 1 : 0) }, (_, i) => (
                 <TableRow key={`__empty_${i}`} rowId={`__empty_${i}`}>
                   <TableCell colSpan={colSpan} aria-hidden className="h-9" />
                 </TableRow>
               ))
             : null}
-          {sorted.map((row, ri) => (
+          {(blockingStatus ? [] : sorted).map((row, ri) => (
             // 직접 행 클릭 이동 제거(onActivate 미지정) — 이동은 제목 셀 호버 "열기" 버튼으로만(노션식).
             // group/row 로 호버 시 "열기" 버튼·그립을 드러낸다.
             <TableRow
@@ -2140,14 +2535,36 @@ export function TableView<P>({
                     }
                   : undefined
               }
-              className="group/row transition-colors hover:bg-surface/60"
+              selected={selection?.selected.has(row.id)}
+              className="group/row transition-colors hover:bg-surface/60 data-[selected]:bg-surface"
             >
+              {selection && (
+                <TableCell
+                  data-table-row-stop
+                  // 체크박스 열 sticky-left — 고른 행의 배경(surface)이 고정 열에도 이어지게.
+                  className="sticky left-0 z-[1] bg-background px-0 align-middle group-hover/row:bg-surface/60 group-data-[selected]/row:bg-surface"
+                >
+                  <span className="flex items-center justify-center">
+                    <Checkbox
+                      size="sm"
+                      aria-label={copy.selectRowAria}
+                      checked={selection.selected.has(row.id)}
+                      onClick={(e) => {
+                        // Shift 는 change 이벤트에 실리지 않는다 — 클릭에서 읽어 범위로 처리한다.
+                        e.stopPropagation()
+                        toggleRow(row.id, e.currentTarget.checked, e.shiftKey)
+                      }}
+                    />
+                  </span>
+                </TableCell>
+              )}
               {reorderable && (
                 <TableCell
                   data-table-row-stop
                   // 그립 컬럼 sticky-left — 헤더와 짝을 이룬다. 호버 시 row 의 bg-surface/60 를 셀에도 적용해
                   // 가로 스크롤된 콘텐츠가 sticky 셀 아래로 비치지 않게(노션 DB 와 동일 효과).
-                  className="sticky left-0 z-[1] w-8 bg-background align-middle group-hover/row:bg-surface/60"
+                  className="sticky z-[1] w-8 bg-background align-middle group-hover/row:bg-surface/60 group-data-[selected]/row:bg-surface"
+                  style={{ left: gripLeft }}
                 >
                   <span
                     role="button"
@@ -2172,20 +2589,20 @@ export function TableView<P>({
                 // 조건부 서식(스프레드시트식) — 규칙은 행 전체에 대해 평가하되 서식은 이 컬럼에만.
                 // sticky 첫 컬럼은 자체 bg 가 있어야 가로 스크롤 시 콘텐츠가 비치지 않는다 →
                 // 서식 배경이 그 bg 를 이기도록 뒤에 붙인다(cn 병합 순서 = 뒤가 우선).
-                const cellFormat = conditionalFormatClassName(
-                  resolveCellFormat(view.conditionalFormats, c.key, row.props),
-                )
+                const cellStyle = resolveCellFormat(view.conditionalFormats, c.key, row.props)
+                const cellFormat = conditionalFormatClassName(cellStyle)
                 return (
                   // 편집 셀은 셀 전체를 행 열기에서 제외(셀 어디를 눌러도 편집만, 행 이동 X).
                   // 컨트롤(input/button) 래퍼 여백 클릭이 행 네비게이션으로 새지 않게 td 에 stop 을 둔다.
-                  // ci===0(타이틀): sticky-left — 헤더와 짝. reorderable 이면 그립(32px) 다음에 위치.
+                  // ci===0(타이틀): sticky-left — 헤더와 짝. 체크박스·그립 열 다음에 위치.
                   <TableCell
                     key={c.key}
+                    style={ci === 0 ? { left: titleLeft } : undefined}
                     className={cn(
                       ci === 0 &&
                         cn(
-                          reorderable ? 'sticky left-8 z-[1]' : 'sticky left-0 z-[1]',
-                          'bg-background group-hover/row:bg-surface/60',
+                          'sticky z-[1]',
+                          'bg-background group-hover/row:bg-surface/60 group-data-[selected]/row:bg-surface',
                           // 고정 컬럼의 오른쪽 경계 — 여기부터 표가 밀린다는 표시
                           'shadow-[1px_0_0_var(--color-border)]',
                         ),
@@ -2215,7 +2632,13 @@ export function TableView<P>({
                       <Cell
                         def={c}
                         value={row.props[c.key] ?? null}
-                        renderContext={{ id: row.id, props: row.props, def: c }}
+                        renderContext={{
+                          id: row.id,
+                          props: row.props,
+                          def: c,
+                          schema: baseSchema,
+                          ...(onEdit ? { edit: (k, v) => onEdit(row.id, k, v) } : {}),
+                        }}
                         onChange={editable ? (v) => onEdit(row.id, c.key, v) : undefined}
                         options={optionsByKey[c.key]}
                         onOptionsChange={
@@ -2231,6 +2654,8 @@ export function TableView<P>({
                         }
                         onAction={onAction ? (action) => onAction(row.id, action) : undefined}
                         wrapCells={wrapCells}
+                        // 상태 색으로 칠한 칸이 비었으면 「—」 — 색만 있고 글자가 없으면 무엇이 빠졌는지 읽히지 않는다.
+                        emptyMark={!!cellStyle?.tone && cellStyle.tone !== 'muted'}
                       />
                     )}
                   </TableCell>
@@ -2243,7 +2668,7 @@ export function TableView<P>({
            * "+ {createLabel}" — 항상 마지막 행(노션 DB 동일). 빈 상태/데이터 유무 무관. 클릭/Enter/Space 로 생성.
            * 컬럼 전체를 가로지르는 단일 셀(colSpan).
            */}
-          {onCreate && (
+          {onCreate && !blockingStatus && (
             <TableRow key="__create" rowId="__create">
               <TableCell
                 colSpan={colSpan}
@@ -2268,43 +2693,55 @@ export function TableView<P>({
          * onAggregationChange 가 있으면 셀이 메뉴 트리거가 되어 종류를 바꿀 수 있다(호버 시 '계산' 힌트).
          * 빈 상태에도 footer 가 보이게 항상 렌더 — 결과는 0 또는 빈 값.
          */}
-        <tfoot>
-          <tr className="group/footer border-t border-border bg-surface/40">
-            {reorderable && (
-              <td
-                aria-hidden
-                className="sticky left-0 z-[1] w-8 border-r border-border bg-surface/40 px-2 py-1"
-              />
-            )}
-            {columns.map((c, i) => {
-              const aggType = view.aggregations?.[c.key] ?? 'none'
-              const vals = sorted.map((r) => r.props[c.key])
-              return (
+        {!blockingStatus && (
+          <tfoot>
+            {/* 높이 40 · 칸 구분선 없음(시안 10-22) — 집계는 몇 칸에만 있어 세로선은 빈 칸을 나눌 뿐이다. */}
+            <tr className="group/footer h-10 border-t border-border bg-surface/40">
+              {selection && (
+                <td aria-hidden className="sticky left-0 z-[1] bg-surface/40 px-0 py-0" />
+              )}
+              {reorderable && (
                 <td
-                  key={c.key}
-                  className={cn(
-                    'border-r border-border px-2 py-1 align-middle last:border-r-0',
-                    i === 0 &&
-                      (reorderable
-                        ? 'sticky left-8 z-[1] bg-surface/40'
-                        : 'sticky left-0 z-[1] bg-surface/40'),
-                  )}
-                >
-                  <FooterCell
-                    values={vals}
-                    type={aggType}
-                    scope={aggregationScope}
-                    totalCount={totalCount}
-                    onChange={
-                      onAggregationChange ? (next) => onAggregationChange(c.key, next) : undefined
-                    }
-                  />
-                </td>
-              )
-            })}
-            {onAddProperty && <td aria-hidden className="w-10" />}
-          </tr>
-        </tfoot>
+                  aria-hidden
+                  className="sticky z-[1] w-8 bg-surface/40 px-2 py-0"
+                  style={{ left: gripLeft }}
+                />
+              )}
+              {columns.map((c, i) => {
+                const aggType = view.aggregations?.[c.key] ?? 'none'
+                const vals = sorted.map((r) => r.props[c.key])
+                return (
+                  <td
+                    key={c.key}
+                    style={i === 0 ? { left: titleLeft } : undefined}
+                    className={cn(
+                      'px-2 py-0 align-middle',
+                      i === 0 && 'sticky z-[1] bg-surface/40',
+                    )}
+                  >
+                    {/* 구조 속성은 자기 값이 없어 셀 것이 없다 — 칸의 밑 속성 컬럼에서 센다. */}
+                    {c.type !== 'struct' && (
+                      <FooterCell
+                        values={vals}
+                        type={aggType}
+                        // 센 칸이 조건부 서식으로 칠해졌으면 숫자도 그 색(「빈 값 10」 = 주황 칸 열 개).
+                        tone={aggregationTone(aggType, c.key, sorted, view.conditionalFormats)}
+                        scope={aggregationScope}
+                        totalCount={totalCount}
+                        onChange={
+                          onAggregationChange
+                            ? (next) => onAggregationChange(c.key, next)
+                            : undefined
+                        }
+                      />
+                    )}
+                  </td>
+                )
+              })}
+              {onAddProperty && <td aria-hidden className="w-10" />}
+            </tr>
+          </tfoot>
+        )}
       </TableFrame>
     </Table>
   )

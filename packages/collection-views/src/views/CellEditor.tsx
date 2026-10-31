@@ -12,7 +12,7 @@ import {
   cn,
   type DateEditValue,
 } from '@oobleck/systheme'
-import type { CoordinateSystem, GeoValue } from '@oobleck/collection'
+import type { CoordinateSystem, DateDisplayFormat, GeoValue } from '@oobleck/collection'
 import type { GeoSearchResult } from '@oobleck/collection'
 import { formatGeoLabel, isGeoValue } from '@oobleck/collection'
 import { AddressAutocomplete } from './AddressAutocomplete'
@@ -547,20 +547,22 @@ export type DateCellEditorProps = {
   value: string
   /** 커밋 — 값이 바뀔 때 호출(라이브). null = 미설정(지움). */
   onCommit: (value: string | null) => void
+  /** 트리거 글자 모양 — 컬럼의 PropertyDef.dateFormat(기본 'ko'). 표 칸과 같은 글자를 쓴다. */
+  format?: DateDisplayFormat
 }
 
 /**
  * 날짜(date) 셀 편집기 — 공용 DateEditPanel 로 단일/기간/시간 날짜를 편집한다. 트리거엔 표시용 라벨
  * (단일·"start ~ end"·시간 포함), 없으면 "날짜 없음".
  */
-export function DateCellEditor({ value, onCommit }: DateCellEditorProps) {
+export function DateCellEditor({ value, onCommit, format }: DateCellEditorProps) {
   const c = cellEditorCopy(useCollectionLocale())
   const [open, setOpen] = useState(false)
   const parts = parseDateValueParts(value)
   const panelValue: DateEditValue = parts.start
     ? { start: parts.start, end: parts.end, hasTime: parts.hasTime }
     : null
-  const label = formatDateValueDisplay(value)
+  const label = formatDateValueDisplay(value, format)
 
   // 라이브 커밋 — 기간/시간 편집 중에도 즉시 반영. 닫기는 바깥 클릭(AnchorContextSurface)이 담당.
   const handleChange = (v: DateEditValue) => {

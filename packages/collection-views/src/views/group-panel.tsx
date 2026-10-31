@@ -9,6 +9,7 @@
 // ("그룹 기준" 설정은 레이아웃 패널 소속). 별도 ⊞ 허브 슬롯으로 노출하지 않는다.
 
 import { Select, Switch, cn } from '@oobleck/systheme'
+import { isMultiValueType, isOptionBackedType } from '@oobleck/collection'
 import type { PropertyDef, ViewConfig } from '@oobleck/collection'
 import { useCollectionLocale } from '../i18n'
 import { groupPanelCopy } from './group-panel.messages'
@@ -17,11 +18,11 @@ import { groupPanelCopy } from './group-panel.messages'
 
 /**
  * 그룹 기준으로 쓸 수 있는 컬럼만 추린다.
- * select / multi_select 타입만 그룹핑에 의미 있다 — 값이 열거형이어야 그룹을 나눌 수 있기 때문.
- * (board 코어의 cardGroupKeys·groupKeysOf 가 이 두 타입을 전제하고 있으므로 동일 규칙 사용.)
+ * select / multi_select 와 사람(person / multi_person)만 그룹핑에 의미 있다 — 값이 열거형이어야
+ * 그룹을 나눌 수 있기 때문(사람은 계정 명단이 열거다). 다중값은 board 코어의 fan-out 규칙을 따른다.
  */
 function resolveGroupCandidates(schema: PropertyDef[]): PropertyDef[] {
-  return schema.filter((d) => d.type === 'select' || d.type === 'multi_select')
+  return schema.filter((d) => isOptionBackedType(d.type))
 }
 
 // ─── GroupPanel 컴포넌트 ─────────────────────────────────────────────────────
@@ -107,7 +108,7 @@ export function GroupPanel({ schema, view, onViewChange }: GroupPanelProps) {
               {isSelected && <span className="size-1.5 rounded-full bg-primary-fg" />}
             </span>
             <span className="min-w-0 flex-1 truncate">{def.label}</span>
-            {def.type === 'multi_select' && (
+            {isMultiValueType(def.type) && (
               <span className="shrink-0 text-[10px] text-fg-muted">{c.multiBadge}</span>
             )}
           </button>
@@ -115,7 +116,7 @@ export function GroupPanel({ schema, view, onViewChange }: GroupPanelProps) {
       })}
 
       {/* multi_select 선택 시 fan-out 안내 */}
-      {selectedDef?.type === 'multi_select' && (
+      {selectedDef && isMultiValueType(selectedDef.type) && (
         <p className="mt-1 border-t border-border pt-1.5 text-[11px] text-fg-muted">
           {c.fanOutHint}
         </p>

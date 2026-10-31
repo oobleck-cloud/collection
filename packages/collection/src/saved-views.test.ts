@@ -4,6 +4,7 @@ import {
   canDeleteSavedView,
   canDuplicateSavedView,
   canEditSavedView,
+  canSaveSavedViewConfig,
   canRemoveViewFromTabs,
   isOwnSavedView,
   isSharedSavedView,
@@ -211,5 +212,33 @@ describe('가드 — 기본 뷰와 남의 공유 뷰', () => {
 
   it('소유자 없는 옛 뷰는 내 것으로 취급한다', () => {
     expect(canEditSavedView(view('legacy'), asU1)).toBe(true)
+  })
+})
+
+describe('가드 — 관리자(canManageAny)', () => {
+  const admin = { ...DEFAULTS, currentUserId: 'u1', canManageAny: true }
+  const othersPrivate: SavedView = { ...OTHERS, id: 'others-private', visibility: 'private' }
+  const system: SavedView = { ...OTHERS, id: 'preset:mm', system: true }
+
+  it('남의 공유 뷰를 고친다 — 지우지는 못한다', () => {
+    expect(canEditSavedView(OTHERS, admin)).toBe(true)
+    expect(canSaveSavedViewConfig(OTHERS, admin)).toBe(true)
+    expect(canDeleteSavedView(OTHERS, admin)).toBe(false)
+  })
+
+  it('남의 비공개 뷰는 관리자도 못 고친다', () => {
+    expect(canEditSavedView(othersPrivate, admin)).toBe(false)
+    expect(canSaveSavedViewConfig(othersPrivate, admin)).toBe(false)
+  })
+
+  it('시스템 뷰는 이름·삭제는 누구도 못 하고, 설정 저장은 관리자만', () => {
+    expect(canEditSavedView(system, admin)).toBe(false)
+    expect(canDeleteSavedView(system, admin)).toBe(false)
+    expect(canSaveSavedViewConfig(system, admin)).toBe(true)
+    expect(canSaveSavedViewConfig(system, { ...DEFAULTS, currentUserId: 'u1' })).toBe(false)
+  })
+
+  it('기본 뷰는 관리자도 못 고친다', () => {
+    expect(canSaveSavedViewConfig(BASE, admin)).toBe(false)
   })
 })

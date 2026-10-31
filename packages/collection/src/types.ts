@@ -38,6 +38,9 @@ export type PropertyType =
   | 'phone'
   | 'geo' // 위치(경위도 + 도로명주소) — 값은 GeoValue 객체(#45). 지도 뷰는 별도(#36).
   | 'button' // 행 액션 버튼(노션식 버튼 속성) — 값은 ButtonValue 객체, 클릭은 ViewSurfaceProps.onAction 으로 위임.
+  | 'person' // 사람(계정) 한 명 — 값은 계정 id. 이름·보조표기는 PropertyDef.options(호스트가 채운 명단)에서 푼다.
+  | 'multi_person' // 사람 여러 명 — 값은 계정 id[]. multi_select 와 같은 규칙(has/not_has·그룹 fan-out).
+  | 'struct' // 구조 속성 — 자기 값이 없고 다른 속성들을 칸(slot)으로 묶어 보이고 고친다. 정의는 PropertyDef.struct, 규칙은 ./struct.
 
 /**
  * 프로퍼티 정의(컬렉션 레벨의 컬럼 정의).
@@ -61,6 +64,13 @@ export type SelectOption = {
   label?: string
   /** DS Tag 색 이름(gray|blue|green|orange|red|purple|teal). 미지정 = 값 해시 색. */
   color?: string
+  /** 보조 표기 — person 피커가 이름 옆에 보인다(이메일·역할 등). */
+  hint?: string
+  /**
+   * 새로 고를 수 없는 선택지(비활성 계정 등). 이미 들어 있는 값의 이름 풀이에는 쓰이고,
+   * 셀 피커 목록에서는 빠진다.
+   */
+  inactive?: boolean
 }
 
 /**
@@ -87,6 +97,35 @@ export type CellRenderContext = {
   props: Record<string, PropertyValue>
   /** 이 컬럼의 정의(라벨·타입·옵션). */
   def: PropertyDef
+  /**
+   * 표 전체 스키마 — 한 칸이 다른 컬럼의 정의(라벨·타입·단위)까지 알아야 할 때(구조 속성의 칸).
+   * 미지정이면 그 칸은 다른 컬럼을 모르는 것으로 그린다.
+   */
+  schema?: readonly PropertyDef[]
+  /**
+   * 이 행의 **다른** 컬럼 값을 고친다 — 구조 속성은 자기 값이 없고 칸이 가리키는 속성을 고친다.
+   * 미지정 = 읽기 전용.
+   */
+  edit?: (key: string, value: PropertyValue) => void
+}
+
+/**
+ * date 값의 표시 글자 모양 — PropertyDef.dateFormat. 'relative' 는 오늘 기준 「D-3」·「D-day」·「D+2」,
+ * 'short' 는 「10/23(목)」(올해가 아니면 「2025/10/23(목)」) — 카드 한 줄에 끼는 짧은 날짜.
+ */
+export type DateDisplayFormat = 'ko' | 'iso' | 'relative' | 'short'
+
+/**
+ * 컬럼 머리 메뉴의 켜고 끄는 설정 한 줄 — 호스트가 컬럼마다 정한다(예: 커스텀 속성의 「콜 기록으로만 수정」).
+ * 켜져 있으면 체크로 보이고, 누르면 [onToggle].
+ */
+export type ColumnToggle = {
+  id: string
+  label: string
+  /** 메뉴 줄 아래 작은 설명(선택). */
+  description?: string
+  checked: boolean
+  onToggle: () => void
 }
 
 export type PropertyDef = {
@@ -95,13 +134,30 @@ export type PropertyDef = {
   type: PropertyType
   source: 'frontmatter' | 'projection'
   origin: 'base' | 'preset'
-  /** select / multi_select 의 옵션. 문자열 배열(레거시) 또는 리치 객체 배열. 배열 순서 = 표시 순서. */
+  /**
+   * select / multi_select 의 옵션. 문자열 배열(레거시) 또는 리치 객체 배열. 배열 순서 = 표시 순서.
+   *
+   * person / multi_person 에서는 **사람 명단**이다(value = 계정 id, label = 이름, hint = 이메일·역할).
+   * 정의가 아니라 호스트가 읽을 때마다 채우는 해석표라, 개명은 다음 렌더에 바로 따라간다.
+   * 필터 값 선택·칩 라벨·그룹 라벨이 select 와 같은 자리에서 이름을 푼다.
+   */
   options?: string[] | SelectOption[]
+  /**
+   * person / multi_person 셀의 「나」 지름길이 고를 계정 id(보는 사람). 미지정이면 지름길이 없다.
+   * 필터의 「나」는 이것과 무관하다 — 저장된 보기에는 상대값으로 남고 질의 경계에서 풀린다.
+   */
+  selfPersonId?: string
   /**
    * 옵션 집합 잠금 — true 면 옵션 생성·삭제·순서변경 불가(고정 enum). 선택만 가능.
    * 상품 status 처럼 엔진이 의존하는 고정 enum 을 이 플래그로 표현한다(특수분기 아님).
    */
   locked?: boolean
+  /**
+   * 손으로 고칠 수 없는 까닭(「콜 기록으로 수정」) — 지정하면 머리에 자물쇠, 읽기 전용 칸과 보드 열 머리에 이 글을 보인다.
+   * 칸을 고칠 수 없게 하는 것은 `source: 'projection'` 이고, 이 칸은 까닭을 말하면서 보드가 이 속성으로 묶였을 때 카드를 다른 열로
+   * 옮기지 않게 한다(끌기 = 그 값을 고치는 쓰기라서). 호스트가 정한다.
+   */
+  readOnlyReason?: string
   /**
    * (플라톤 연역) 프로토타입(Form)이 선언한 *상속 컬럼* — true 면 구조 잠김(삭제·타입변경 불가, 값·이름은 자유).
    * 일반 편집(/schema)에선 잠금 표시·비활성, Form 편집(/prototype-schema)에서만 정의/해제. 미지정=자유 컬럼.
@@ -116,6 +172,48 @@ export type PropertyDef = {
    * 셀에 보일 문자열을 만든다. 지정 시 ReadonlyCell 이 타입별 렌더 대신 이 결과를 쓴다(빈 문자열 = 미설정 '—').
    */
   format?: (value: unknown) => string
+  /**
+   * 평문으로 옮길 때(CSV 내보내기)의 글자 — 지정 시 타입별 규칙(선택지 라벨 등)보다 앞선다. 관계 칸처럼 값(id)만으로는
+   * 사람이 읽을 말을 못 만들고 행의 다른 값(경로 코드)이 필요할 때 화면이 단다.
+   */
+  exportText?: (value: PropertyValue, props: Record<string, PropertyValue>) => string
+  /**
+   * date 컬럼이 **날짜만** 담는가(이사일·세일즈콜 날짜처럼 그날 자체가 값인 것). 미지정 = 시각까지 담을 수 있다.
+   *
+   * 날짜만 든 값은 질의에서 그날 0시로 읽힌다 — `이사일 ≥ 지금` 은 오늘 이사를 떨구고 `이사일 ≤ 3시간 후` 는 오늘 것을
+   * 모두 맞힌다. 그래서 필터 편집기가 이 컬럼에는 「N시간 전/후」와 시각 칸을 내지 않는다. 코드가 소유한다.
+   */
+  dateOnly?: boolean
+  /**
+   * date 컬럼을 어떤 글자로 보이나 — 표 칸·카드·편집 트리거·자동 폭이 같이 따른다(저장값은 그대로).
+   *  - `'ko'`(기본): 「2026. 10. 21.」(시각이 있으면 「2026. 10. 21. 14:30」)
+   *  - `'iso'`: 「2026-10-21」(시각이 있으면 「2026-10-21 14:30」) — 날짜가 줄지어 서는 목록에서 자릿수가 맞는다.
+   *  - `'relative'`: 오늘(보는 사람의 로컬 날짜) 기준 「D-3」·「D-day」·「D+2」(시각이 있으면 「D-1 14:30」) — 기한처럼
+   *    「며칠 남았나」가 값의 뜻인 열. 임박 색은 조건부 서식이 맡는다(이 모양은 글자만 바꾼다).
+   * 코드가 소유한다.
+   */
+  dateFormat?: DateDisplayFormat
+  /**
+   * 카드(board·gallery)에서 이 속성 앞에 붙는 이름표 — 뷰의 `cardPropLabels` 가 켜졌을 때만 쓴다.
+   * 미지정이면 `label`. **빈 문자열이면 이름표 없이** 다른 빈 이름표 속성과 한 줄에 「 · 」로 잇는다
+   * (「0 / 7 · 010-2384-1192」 — 무엇인지 값이 스스로 말하는 속성). 코드가 소유한다.
+   */
+  cardLabel?: string
+  /**
+   * 카드에서 이 속성이 비었을 때 대신 보일 속성 키 — 「최근 학습」이 없으면 「가입」을 보이는 식.
+   * 대신 보이는 속성은 자기 이름표·서식을 쓴다. 대신 보일 것도 비었으면 아무것도 그리지 않는다. 코드가 소유한다.
+   */
+  cardFallbackKey?: string
+  /**
+   * 카드에서 이 속성을 이름표 줄이 아니라 **위 메타 한 줄**에 「이름표 값」으로 잇는다(「방문 10/23(목) 11:30」).
+   * 이름표 없는(`cardLabel: ''`) 속성과 같은 줄에 「 · 」로 선다. 뷰의 `cardPropLabels` 가 켜졌을 때만. 코드가 소유한다.
+   */
+  cardMeta?: boolean
+  /**
+   * 카드 이름표를 행의 **다른 속성 값**에서 읽는다(요약 묶음 — 기준가가 희망가면 「희망가」, 타업체 견적이면 「타업체 견적」).
+   * 그 값이 비면 `cardLabel` → `label`. 코드가 소유한다.
+   */
+  cardLabelKey?: string
   /**
    * 커스텀 셀 렌더러(이스케이프 해치) — 지정 시 이 컬럼의 셀은 타입별 렌더도 `format` 도 타지 않고
    * 이 함수의 반환 노드를 그대로 그린다. 편집형 컨트롤보다도 우선한다(코드가 소유한 표현이므로).
@@ -182,6 +280,16 @@ export type PropertyDef = {
    */
   hiddenByDefault?: boolean
   /**
+   * 속성 고르기에서 이 속성이 놓일 자리 — 바깥에서 안쪽으로(`['주문', '일정']`, `['견적', '계약 파트너']`).
+   *
+   * 속성이 수십 개가 되면(주문: 기본·장소·일정·견적·관계 너머 값) 평평한 목록으로는 찾을 수 없다.
+   * 필터 추가 목록이 이 경로로 묶어 머리글 아래 모으고, 검색 중에는 경로를 라벨 옆에 보여
+   * 같은 이름(평점)이 어느 관계의 것인지 가른다. 비우면 묶음 없이 맨 앞에 선다.
+   */
+  group?: string[]
+  /** 검색이 이름 말고도 알아들을 말(별칭) — 「이사일」로 「이사 예정일」을 찾는 식. */
+  aliases?: string[]
+  /**
    * 선택지 색을 팀이 고를 수 있는가 — 헤더 메뉴의 "선택지 색".
    *
    * 미지정이면 플랫폼 기본(`isOptionColorEditable`): 선택지가 있고 셀을 직접 그리지 않는
@@ -212,6 +320,56 @@ export type PropertyDef = {
    * 행 생성(POST)이고, 부분 갱신(PUT 머지)에선 무시된다(보내지 않은 필드는 기존 값을 유지하므로).
    */
   required?: boolean
+  /**
+   * 수 컬럼의 단위 — 금액이 원과 만 원으로 섞여 있어서 둔다. 표시·구조 속성의 환산·입력 확인이 이 값을 읽는다.
+   * 미지정 = 단위 없음(그 수 그대로).
+   */
+  unit?: NumberUnit
+  /** type='struct' 일 때 칸과 배치. 규칙은 ./struct. */
+  struct?: StructConfig
+}
+
+/** 수 단위 — 원 · 만 원. */
+export type NumberUnit = 'won' | 'manwon'
+
+/**
+ * 구조 속성의 배치 — 칸을 어떤 모양으로 묶는가.
+ *  - compare: 비교(from → to, 차이). - range: 범위(min ~ max). - route: 경로(from → to). - summary: 요약 줄(item × n).
+ */
+export type StructLayout = 'compare' | 'range' | 'route' | 'summary'
+
+/**
+ * 칸의 자리 — 배치마다 쓰는 자리가 정해져 있다(compare=from·to·diff, range=min·max, route=from·to, summary=item).
+ * state 는 compare · range 의 선택 칸 — 선택 속성 하나가 수 칸을 켜고 끈다(희망가 응답 「금액 받음」일 때만 하한 · 상한).
+ */
+export type StructSlotRole = 'from' | 'to' | 'diff' | 'min' | 'max' | 'item' | 'state'
+
+/**
+ * 구조 속성의 칸 하나.
+ *  - keys: 가리키는 속성 키(내장 · `x:` 커스텀). 둘 이상이면 **앞에서부터 첫 값**을 쓴다
+ *    (기준가 = 희망 금액, 없으면 타업체 견적 금액).
+ *  - label: 칸 이름. 미지정이면 첫 키의 라벨.
+ */
+export type StructSlot = {
+  role: StructSlotRole
+  label?: string
+  keys: string[]
+}
+
+/**
+ * 구조 속성 정의 — 값을 저장하지 않는다. 읽을 때 칸이 가리키는 값을 묶고, 고치면 밑 속성이 고쳐진다
+ * (출처 · 이력은 밑 속성에 그대로 남는다). 구조 속성은 다른 구조 속성을 가리키지 않는다(한 단계).
+ *  - better: compare 의 차이가 어느 쪽이 좋은가 — 색(나쁜 쪽 = warning)을 정한다. 미지정 = 색 없음.
+ */
+export type StructConfig = {
+  layout: StructLayout
+  slots: StructSlot[]
+  better?: 'lower' | 'higher'
+  /**
+   * state 칸의 이 값들일 때만 수 칸이 켜진다(예: ['금액 받음']). 다른 값이면 수 칸은 비활성이고 표 · 카드는
+   * 응답(「모름」)을 보인다. state 칸이 비어 있으면 켠 것으로 본다(응답을 적지 않은 기존 기록). 미지정 = 늘 켬.
+   */
+  activeWhen?: string[]
 }
 
 /**
@@ -231,6 +389,9 @@ export type BasePropertyType =
   | 'phone'
   | 'relation'
   | 'geo'
+  | 'person'
+  | 'multi_person'
+  | 'struct'
 
 export type BasePropertyDef = {
   key: string
@@ -246,6 +407,10 @@ export type BasePropertyDef = {
   relation?: RelationConfig
   /** 데이터 API 쓰기에서 필수인가(record-schema 파생). 자세한 의미는 PropertyDef.required 참조. */
   required?: boolean
+  /** number 의 단위. 자세한 의미는 PropertyDef.unit 참조. */
+  unit?: NumberUnit
+  /** type='struct' 의 칸 · 배치. 「+」 로 만들 때는 비어 오고, 호스트가 저작 폼으로 채운다. */
+  struct?: StructConfig
 }
 
 /**
@@ -266,6 +431,21 @@ export type RelationOption = {
   id: string
   label: string
   hint?: string
+  /**
+   * 계층 값의 두 부분 — 칸의 칩을 「앞말(흐리게) + 본말(굵게)」 회색 면 칩으로 그린다(예: 구역 「서울 구로구」 =
+   * `{ qualifier: '서울', name: '구로구' }`). 없으면 label 한 덩이의 기본 칩. label 은 그대로 툴팁·검색·필터의 평문이다.
+   */
+  parts?: { qualifier?: string; name: string }
+  /**
+   * 이 레코드를 덮는 레코드의 id — 같은 칸에 그 레코드가 함께 있으면 이 칩은 숨긴다(「고양 전체」가 「고양 덕양구」를
+   * 덮는다). 덮는 칩을 지우면 덮여 있던 것도 함께 지운다(숨어 있던 값이 되살아나지 않게).
+   */
+  coveredBy?: string
+  /**
+   * 가리키는 레코드가 대상 컬렉션에 없다(지워졌거나 옛 버전) — provider 가 대신 적을 말을 label 에 담아 답한다
+   * (「알 수 없는 구역」). 칸은 흐린 글자(읽기 전용)·흐린 칩(편집형)으로 그리고 title 에 id 를 남긴다.
+   */
+  missing?: boolean
 }
 
 /**
@@ -287,6 +467,50 @@ export type RelationTargetOption = {
 export type RelationProvider = {
   search: (query: string) => Promise<RelationOption[]> | RelationOption[]
   resolve: (ids: string[]) => Promise<RelationOption[]> | RelationOption[]
+  /**
+   * 대상 레코드의 속성(선택) — 관계 표(카드·문서 안 블록)가 대상 레코드의 칸을 그릴 때 읽는다.
+   * 미지정이면 관계 표를 그릴 수 없다(칩만 — 현행). 자세한 계약은 `RelatedRecordSource`.
+   */
+  records?: RelatedRecordSource
+}
+
+/** 관계 표 한 줄 — 대상 레코드 하나(id + 속성 행). */
+export type RelatedRecordRow = {
+  id: string
+  props: Record<string, PropertyValue>
+}
+
+/**
+ * 관계 표 줄의 동작 버튼(호스트가 단다) — 줄 오른쪽 끝에 놓인다. 실행은 호스트(순수 콜백).
+ * 함수를 담으므로 JSON 안전이 아니다 — 뷰 설정이 아니라 코드가 소유한다(`render`·`format` 과 같은 규칙).
+ */
+export type RelatedRowAction = {
+  id: string
+  /** 버튼 글자 — 동사 하나(「네고 콜」). */
+  label: string
+  /** 이 줄에 보일까. 미지정 = 모든 줄. */
+  visible?: (row: RelatedRecordRow) => boolean
+  /** 실행 — 카드(부모 레코드) id 와 줄(대상 레코드) id. */
+  run: (ctx: { recordId: string; relatedId: string }) => void
+}
+
+/**
+ * 관계 대상 레코드의 읽기 창구 — 관계 표가 대상 레코드의 속성을 표로 그리게 한다(도메인 무관).
+ *
+ * **동기 읽기다.** 호스트가 화면에 필요한 대상 레코드를 이미 한 번에 읽어 두고(페이지 단위 일괄 조회) 그 사본을 건넨다 —
+ * 카드마다 따로 묻지 않는다(N+1 금지). 아직 읽는 중이면 빈 배열을 돌려주면 된다(표를 그리지 않는다).
+ */
+export type RelatedRecordSource = {
+  /** 대상 컬렉션의 속성 정의 — 표 열의 후보·셀 렌더(`render`·`format` 도 쓴다). */
+  schema: PropertyDef[]
+  /** 기본 열(속성 키) — 뷰가 열을 고르지 않았을 때. 미지정 = 대상 스키마에서 숨김 아닌 것 전부. */
+  defaultColumns?: string[]
+  /** id 들 → 대상 레코드 행(**넘긴 순서대로**). 모르는 id 는 빠진다. */
+  read: (ids: readonly string[]) => RelatedRecordRow[]
+  /** 「+ N곳 더」의 셈 단위(「곳」·「건」). 미지정 = 로캘 기본(「개」). */
+  countUnit?: string
+  /** 줄 동작 버튼. */
+  rowActions?: RelatedRowAction[]
 }
 
 /**
@@ -321,11 +545,55 @@ export type TimelineConfig = {
 }
 
 /**
+ * 관계 표(카드 블록) 설정 — JSON 안전, optional. 보드 카드 아래에 관계 속성이 가리키는 대상 레코드를 작은 표로 그린다.
+ * - key: 관계(type='relation') 속성 키. 대상 provider 에 `records` 가 있어야 그려진다.
+ * - columns: 대상 레코드의 열(속성 키, 순서대로). 미지정 = provider 의 기본 열.
+ * - maxRows: 카드에 보일 최대 줄 수(기본 3). 넘치면 「+ N개 더」 한 줄로 접는다.
+ * - variant: 'table'(기본 — 머리 줄 · 줄 사이 선이 있는 작은 표) | 'list'(머리 줄 · 테두리 · 구분선 없는 목록 줄,
+ *   첫 줄 동작이 채운 버튼). 카드가 이미 떠 있는 면이라 목록이 덜 시끄럽다.
+ * - collapsed: true 면 처음엔 「견적 3곳 보기」 한 줄로 접어 두고, 누르면 그 자리에서 펼친다(카드는 열리지 않는다).
+ */
+export type RelationTableConfig = {
+  key: string
+  columns?: string[]
+  maxRows?: number
+  variant?: 'table' | 'list' | 'rows'
+  collapsed?: boolean
+}
+
+/**
+ * 카드 짜임(board) — JSON 안전, optional. 보이는 속성 중 일부를 이름표 줄 대신 정해진 자리에 세운다.
+ * - badgeKey: 제목 오른쪽 배지(「D-1」). 상대 날짜(dateFormat 'relative')는 오늘 · 내일 · 지남이면 주의 색,
+ *   그 밖의 색은 조건부 서식(그 속성을 대상으로 한 tone)이 정한다.
+ * - metrics: 요약 묶음(옅은 바탕 하나). **첫째가 무게중심** — 왼쪽에 이름표 위 · 큰 값(「줄여야 할 금액 +20만」), 나머지는
+ *   오른쪽에 작은 「이름표 값」 줄(「희망가 100만」·「최저 견적 120만」). 이름표는 cardLabelKey → cardLabel → label.
+ *   값 색은 조건부 서식(그 속성을 대상으로 한 tone). 빈 값은 「—」.
+ * 여기 든 속성은 visibleProps 에 있어야 서고, 이름표 줄에서는 빠진다.
+ */
+export type CardLayoutConfig = {
+  badgeKey?: string
+  metrics?: string[]
+}
+
+/**
  * 한 저장 뷰의 설정 부분 — visibleProps/sort/filters/groupBy/aggregations/cardOrder/coverKey/cardSize/timeline.
  * 노션식 다중 SavedView 의 단위. `type` 별로 의미 있는 필드만 사용된다.
  */
 export type CollectionViewConfig = {
   visibleProps?: string[]
+  /**
+   * 이 뷰가 **이미 아는 컬럼** — visibleProps 에 없으면 "사용자가 숨긴 것"으로 읽는 키들.
+   *
+   * visibleProps 만으로는 "숨긴 컬럼"과 "저장 뒤에 새로 생긴 컬럼"이 둘 다 그냥 "목록에 없음"이라
+   * 구별되지 않는다. 그래서 드리프트 정리가 새 컬럼을 드러내려고 빠진 것을 다 붙이면, 사용자가
+   * 일부러 숨긴 컬럼까지 새로고침마다 되살아났다. 이 목록에 든 키는 다시 붙이지 않는다 — 자동
+   * 노출은 **여기에도 없는(정말 처음 보는) 컬럼**에만 적용된다(`reconcileViewConfig`).
+   *
+   * 숨기는 경로(열 머리·속성 패널·드래그…)마다 "숨겼음"을 따로 적는 대신 "알던 것"을 적는 이유:
+   * 경로가 몇 개든 기록하는 자리는 정리(로드)와 visibleProps 편집 두 군데로 끝난다.
+   * 미지정 = 기록 이전에 저장된 뷰 → 예전 동작(빠진 컬럼을 모두 새 컬럼으로 본다).
+   */
+  knownProps?: string[]
   sort?: Sort[]
   /**
    * 필터 — 트리(FilterGroup) 또는 레거시 평탄 배열(FilterCondition[]). 로드 시 normalizeFilterRoot 로
@@ -334,6 +602,11 @@ export type CollectionViewConfig = {
   filters?: FilterExpr
   /** 그룹핑 기준 키(board) — select/multi_select 컬럼이 적합. */
   groupBy?: string
+  /**
+   * 빈 그룹값을 이 값의 그룹으로 본다(board 등) — 「기록이 없으면 신규」처럼 값이 비어 있는 레코드가 맨 끝 「없음」 열이 아니라
+   * 그 옵션 열에 서게. 저장된 값은 바꾸지 않는다(카드를 옮길 때만 그 열의 값이 적힌다). 미설정 = 빈 값은 「없음」 그룹(현행).
+   */
+  groupEmptyAs?: string
   /** 뷰 surface — 미지정 = 'table'. 레거시 'grid' 는 로드 시 'gallery' 로 정규화. */
   type?: ViewType
   /** 컬럼 키 → 집계 종류. table 뷰 footer 에 표시. 'none' 또는 미지정 = 표시 안 함. */
@@ -355,8 +628,21 @@ export type CollectionViewConfig = {
    * - S: 좁은 폭(176px), 커버 없음, 제목만.
    * - M: 표준 폭(240px, 기본), 커버 h-20, 보조 프로퍼티 표시.
    * - L: 넓은 폭(320px), 커버 h-32, 보조 프로퍼티 확장.
+   * 보드는 열 폭이 곧 카드 폭이다 — S 240px · M 288px(기본, 현행) · L 400px(관계 표가 들어가는 넓은 카드).
    */
   cardSize?: 'S' | 'M' | 'L'
+  /**
+   * board/gallery 뷰 — 카드 속성을 아이콘 칩 대신 **이름표 붙은 글자 줄**로(「최근 학습 2026-10-21」).
+   * 이름표는 속성의 `cardLabel`(없으면 `label`), 빈 이름표 속성은 한 줄에 「 · 」로 잇는다. 기본 false(아이콘 칩).
+   */
+  cardPropLabels?: boolean
+  /**
+   * board 뷰 — 카드 아래 관계 표(관계 속성이 가리키는 대상 레코드를 작은 표로). 미설정 = 표 없음(현행).
+   * 자세한 의미는 `RelationTableConfig`.
+   */
+  relationTable?: RelationTableConfig
+  /** board 뷰 — 카드 짜임(제목 옆 배지 · 숫자 띠). 미설정 = 이름표 줄만(현행). 자세한 의미는 `CardLayoutConfig`. */
+  cardLayout?: CardLayoutConfig
   /**
    * timeline 뷰 — 날짜 축 설정. JSON 안전(함수 없음). 미설정 = 안내 상태.
    * startKey 필수, endKey 있으면 기간 막대(없으면 점/짧은 막대), zoom 으로 눈금 단위.
@@ -368,6 +654,11 @@ export type CollectionViewConfig = {
    */
   hideEmptyGroups?: boolean
   /**
+   * board 뷰 — 카드 없는 열을 좁은 세로 띠(라벨 + 0)로 접는다. 카드를 끄는 동안에는 다시 펼쳐져 놓을 자리가 된다.
+   * hideEmptyGroups 가 켜져 있으면 빈 열은 아예 없으므로 이 값은 의미가 없다. 기본 false(빈 열도 제 폭 — 현행).
+   */
+  collapseEmptyGroups?: boolean
+  /**
    * 표 행 높이(table 뷰) → DS Table density 토큰에 매핑(line-clamp 아님). 미설정 = 'S'(현행 compact, 회귀 0).
    *  - S: compact(기본, 현행 동작 불변). 셀 py 4px.
    *  - M: default. 셀 py 12px.
@@ -376,7 +667,7 @@ export type CollectionViewConfig = {
   rowHeight?: 'S' | 'M' | 'L'
   /**
    * 표 셀 줄바꿈(table 뷰). 미설정/false = 현행 동작(회귀 0).
-   * true 면 편집형 multi_select 셀의 칩 클리핑(max-h-8)을 해제해 칩이 줄바꿈된다(행 높이가 늘어남).
+   * true 면 편집형 multi_select·relation 셀의 칩 한 줄 클리핑(「+N」)을 해제해 칩이 줄바꿈된다(행 높이가 늘어남).
    * 읽기전용 셀은 이 플래그와 무관하게 항상 전부 표시한다.
    */
   wrapCells?: boolean
@@ -394,6 +685,12 @@ export type CollectionViewConfig = {
    * JSON 안전이라 이 config 에 그대로 영속된다. 정의·평가는 `conditional-format.ts`.
    */
   conditionalFormats?: ConditionalFormatRule[]
+  /**
+   * 컬럼 키 → 사용자가 끌어서 정한 폭(px, table 뷰). **뷰마다** 따로 산다 — 같은 화면이라도 뷰가
+   * 다르면 폭이 다르다. 렌더 시 PropertyDef.width 위에 `{ mode:'fixed', px }` 로 덮인다
+   * (applyViewColumnWidths). 미설정 키 = 스키마 폭(자동/기본) 그대로. 미설정 = 현행 동작(회귀 0).
+   */
+  columnWidths?: Record<string, number>
 }
 
 /**
@@ -425,6 +722,11 @@ export type SavedView = {
   ownerId?: string
   /** 만든 사람의 표시 이름(목록에 "만든 사람"으로 보인다). 미지정 = 표시 안 함. */
   ownerName?: string
+  /**
+   * 코드(시스템)가 정의한 뷰인가 — 이름·공유·삭제는 누구도 못 한다. 설정(컬럼·정렬·필터)은 관리자가
+   * 고쳐 저장할 수 있다(어디에 남기는지는 호스트의 몫).
+   */
+  system?: boolean
 }
 
 /**
@@ -580,6 +882,8 @@ export type FilterOp =
   | 'lte'
   | 'has' // 배열이 값을 포함 (multi_select/relation[])
   | 'not_has'
+  | 'in' // 값 목록 중 하나 (select/person — 다중값 셀이면 하나라도 겹침). value = string[]
+  | 'not_in' // 값 목록 어느 것도 아님
   | 'is_empty' // 값이 비어 있음(null/''/[])
   | 'is_not_empty'
 
@@ -592,6 +896,40 @@ export type FilterCondition = {
   op: FilterOp
   /** is_empty / is_not_empty 는 value 불필요. */
   value?: PropertyValue
+  /**
+   * 관계 집계(롤업) 조건 — 있으면 `key` 는 롤업 원천(`RollupSource.key`)이고, `value` 는 집계한 숫자와 비교할 값이다.
+   * 「이 파트너가 낸 견적 중 (주문 = A · 상태 ≠ lost) 의 개수 ≥ 1」.
+   */
+  rollup?: RollupSpec
+}
+
+/** 롤업의 셈. 개수·합계는 이어진 레코드가 없으면 0, 최소·최대·평균은 값이 없다(비어 있음). */
+export type RollupAgg = 'count' | 'sum' | 'min' | 'max' | 'avg'
+
+export type RollupSpec = {
+  agg: RollupAgg
+  /** `count` 외에는 접을 필드 — 원천 스키마의 숫자 속성 키. */
+  field?: string
+  /**
+   * 관계 대상 쪽 조건 — 모두 만족(AND). 편집기는 조건만 만든다. 노드 타입인 것은 상대값을 풀면 한 조건이
+   * 그룹(「이번 주」 → 시작 ≤ x ≤ 끝)이 되기 때문이다.
+   */
+  where: FilterNode[]
+}
+
+/**
+ * 롤업 원천 — 「이 행에 이어진 ○○」 하나. 호스트가 필터 편집기에 알려 주면(`FilterRollupProvider`) 조건 추가 목록에
+ * 원천이 뜨고, 고르면 대상 조건(AND)과 셈을 정하는 조건이 생긴다. 표 컬럼은 아니다 — 거르기만 한다.
+ */
+export type RollupSource = {
+  /** 조건 키 — 서버의 롤업 관계 키와 같다(`rel:quotes`). */
+  key: string
+  /** 원천 이름(「견적」). */
+  label: string
+  /** 대상 레코드의 속성 — 대상 조건의 후보이자 셈의 필드 후보(숫자만). 관계 속성은 `relations` 로 값을 고른다. */
+  schema: PropertyDef[]
+  /** 대상 조건의 관계 속성(참조값)을 검색·해상하는 provider — `PropertyDef.relation.target` 으로 찾는다. */
+  relations?: Record<string, RelationProvider>
 }
 
 /**
@@ -634,6 +972,8 @@ export type ViewConfig = {
   sort: Sort[]
   /** 그룹핑 기준 프로퍼티 키(주로 board). 지정 시 viewRows 는 그룹 묶음을 반환할 수 있다. */
   groupBy?: string
+  /** 빈 그룹값을 이 값의 그룹으로 본다. 자세한 의미는 `CollectionViewConfig.groupEmptyAs`. */
+  groupEmptyAs?: string
   /** 표시할 컬럼(미지정 = 전체). 렌더러 힌트 — viewRows 변환 자체에는 영향 없음. */
   visibleProps?: string[]
   /** 컬럼 키 → footer 집계 종류(table 뷰). 미설정 키는 표시 안 함. */
@@ -649,8 +989,21 @@ export type ViewConfig = {
    * - S: 좁은 폭(176px), 커버 없음, 제목만.
    * - M: 표준 폭(240px, 기본), 커버 h-20, 보조 프로퍼티 표시.
    * - L: 넓은 폭(320px), 커버 h-32, 보조 프로퍼티 확장.
+   * 보드는 열 폭이 곧 카드 폭이다 — S 240px · M 288px(기본, 현행) · L 400px(관계 표가 들어가는 넓은 카드).
    */
   cardSize?: 'S' | 'M' | 'L'
+  /**
+   * board/gallery 뷰 — 카드 속성을 아이콘 칩 대신 **이름표 붙은 글자 줄**로(「최근 학습 2026-10-21」).
+   * 이름표는 속성의 `cardLabel`(없으면 `label`), 빈 이름표 속성은 한 줄에 「 · 」로 잇는다. 기본 false(아이콘 칩).
+   */
+  cardPropLabels?: boolean
+  /**
+   * board 뷰 — 카드 아래 관계 표(관계 속성이 가리키는 대상 레코드를 작은 표로). 미설정 = 표 없음(현행).
+   * 자세한 의미는 `RelationTableConfig`.
+   */
+  relationTable?: RelationTableConfig
+  /** board 뷰 — 카드 짜임(제목 옆 배지 · 숫자 띠). 미설정 = 이름표 줄만(현행). 자세한 의미는 `CardLayoutConfig`. */
+  cardLayout?: CardLayoutConfig
   /**
    * timeline 뷰 — 날짜 축 설정. JSON 안전(함수 없음). 미설정 = 안내 상태.
    * startKey 필수, endKey 있으면 기간 막대(없으면 점/짧은 막대), zoom 으로 눈금 단위.
@@ -662,6 +1015,11 @@ export type ViewConfig = {
    */
   hideEmptyGroups?: boolean
   /**
+   * board 뷰 — 카드 없는 열을 좁은 세로 띠(라벨 + 0)로 접는다. 카드를 끄는 동안에는 다시 펼쳐져 놓을 자리가 된다.
+   * hideEmptyGroups 가 켜져 있으면 빈 열은 아예 없으므로 이 값은 의미가 없다. 기본 false(빈 열도 제 폭 — 현행).
+   */
+  collapseEmptyGroups?: boolean
+  /**
    * 표 행 높이(table 뷰) → DS Table density 토큰에 매핑(line-clamp 아님). 미설정 = 'S'(현행 compact, 회귀 0).
    *  - S: compact(기본, 현행 동작 불변). 셀 py 4px.
    *  - M: default. 셀 py 12px.
@@ -670,7 +1028,7 @@ export type ViewConfig = {
   rowHeight?: 'S' | 'M' | 'L'
   /**
    * 표 셀 줄바꿈(table 뷰). 미설정/false = 현행 동작(회귀 0).
-   * true 면 편집형 multi_select 셀의 칩 클리핑(max-h-8)을 해제해 칩이 줄바꿈된다(행 높이가 늘어남).
+   * true 면 편집형 multi_select·relation 셀의 칩 한 줄 클리핑(「+N」)을 해제해 칩이 줄바꿈된다(행 높이가 늘어남).
    * 읽기전용 셀은 이 플래그와 무관하게 항상 전부 표시한다.
    */
   wrapCells?: boolean
@@ -685,6 +1043,8 @@ export type ViewConfig = {
   groupSort?: 'manual' | 'name' | 'count'
   /** 조건부 서식 규칙 — CollectionViewConfig 동명 필드의 런타임 형태(정규화 없음, 그대로 전달). */
   conditionalFormats?: ConditionalFormatRule[]
+  /** 컬럼 폭 오버라이드 — CollectionViewConfig 동명 필드의 런타임 형태(그대로 전달). */
+  columnWidths?: Record<string, number>
 }
 
 /** 블록팩이 정의하는 이름 붙은 정적 프로퍼티 묶음(D-8 §3 "프리셋 세트"). 예: "상품 기본" = status·category·tags·owner. */

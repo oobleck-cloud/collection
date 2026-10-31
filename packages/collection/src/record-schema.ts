@@ -80,6 +80,11 @@ export function propertyValueSchemaFor(def: PropertyDef): z.ZodTypeAny {
       // cardinality 'many' 는 id 배열, 기본('one')은 id 하나. 대상 행의 *실재* 검증은 이 순수 파생기가
       // 할 수 없다(DB 조회) — 해석기(트랙 A4)가 영속 직전에 확인한다. 여기선 형태만 계약한다.
       return def.relation?.cardinality === 'many' ? z.array(z.string().min(1)) : z.string().min(1)
+    case 'person':
+      // 계정 id 하나. 실재 여부는 서버(쓰기 경로)가 계정 읽기모델로 본다 — 여기선 형태만.
+      return z.string().min(1)
+    case 'multi_person':
+      return z.array(z.string().min(1))
     case 'geo':
       return geoValueSchema
     case 'text':

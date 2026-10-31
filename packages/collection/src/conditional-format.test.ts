@@ -2,7 +2,14 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { conditionalFormatClassName, resolveCellFormat } from './conditional-format'
+import {
+  aggregationTone,
+  cardFormatClassName,
+  conditionalFormatClassName,
+  resolveCardFormat,
+  resolveCellFormat,
+  textFormatClassName,
+} from './conditional-format'
 
 import type { ConditionalFormatRule } from './conditional-format'
 import type { PropertyValue } from './types'
@@ -139,5 +146,120 @@ describe('conditionalFormatClassName', () => {
 
   it('tone 없이 bold 만도 가능하다', () => {
     expect(conditionalFormatClassName({ bold: true })).toBe('font-semibold')
+  })
+})
+
+describe('resolveCardFormat — 보드·갤러리 카드', () => {
+  const stalled: ConditionalFormatRule = {
+    id: 'stalled',
+    target: 'lastActivityAt',
+    when: { op: 'and', children: [{ key: '__stalled', op: 'eq', value: true }] },
+    style: { tone: 'warning' },
+  }
+  const converted: ConditionalFormatRule = {
+    id: 'converted-muted',
+    when: { op: 'and', children: [{ key: 'stage', op: 'eq', value: 'converted' }] },
+    style: { tone: 'muted' },
+  }
+
+  it('보이는 속성을 대상으로 한 규칙은 카드 전체와 그 속성 줄을 칠한다', () => {
+    const r = resolveCardFormat([stalled], row({ __stalled: true }), ['name', 'lastActivityAt'])
+    expect(r.card).toEqual({ tone: 'warning' })
+    expect(r.byKey).toEqual({ lastActivityAt: { tone: 'warning' } })
+  })
+
+  it('카드에 안 보이는 속성을 대상으로 한 규칙은 칠하지 않는다(근거가 안 보이는 색)', () => {
+    const r = resolveCardFormat([stalled], row({ __stalled: true }), ['name', 'phone'])
+    expect(r.card).toBeNull()
+    expect(r.byKey).toEqual({})
+  })
+
+  it('행 전체 규칙은 카드만 칠하고 속성 줄은 건드리지 않는다', () => {
+    const r = resolveCardFormat([converted], row({ stage: 'converted' }), ['name', 'phone'])
+    expect(r.card).toEqual({ tone: 'muted' })
+    expect(r.byKey).toEqual({})
+  })
+
+  it('먼저 나온 규칙이 이긴다(표와 같은 병합)', () => {
+    const r = resolveCardFormat(
+      [converted, stalled],
+      row({ stage: 'converted', __stalled: true }),
+      ['lastActivityAt'],
+    )
+    expect(r.card).toEqual({ tone: 'muted' })
+    expect(r.byKey.lastActivityAt).toEqual({ tone: 'warning' })
+  })
+
+  it('규칙이 없거나 맞지 않으면 서식 없음', () => {
+    expect(resolveCardFormat(undefined, row({}), ['name'])).toEqual({ card: null, byKey: {} })
+    expect(
+      resolveCardFormat([stalled], row({ __stalled: false }), ['lastActivityAt']).card,
+    ).toBeNull()
+  })
+})
+
+describe('cardFormatClassName · textFormatClassName', () => {
+  it('카드는 상태 바탕만 — 테두리 없이(그림자 면)', () => {
+    expect(cardFormatClassName({ tone: 'warning' })).toBe('bg-warning-subtle')
+    expect(cardFormatClassName(null)).toBe('')
+  })
+
+  it('속성 줄은 글자색만', () => {
+    expect(textFormatClassName({ tone: 'warning', bold: true })).toBe(
+      'text-warning-text font-semibold',
+    )
+    expect(textFormatClassName(undefined)).toBe('')
+  })
+})
+
+describe('aggregationTone — 바닥 집계 숫자의 색', () => {
+  const noMain = {
+    id: 'no-main',
+    target: 'main',
+    when: { op: 'and' as const, children: [{ key: 'main', op: 'is_empty' as const }] },
+    style: { tone: 'warning' as const },
+  }
+  const rows = [{ props: { main: ['r1'] } }, { props: { main: null } }, { props: { main: [] } }]
+
+  it('센 빈 칸을 서식이 칠했으면 그 색(플래너 「주선호 미지정」 → 빈 값 숫자도 주황)', () => {
+    expect(aggregationTone('count_empty', 'main', rows, [noMain])).toBe('warning')
+  })
+
+  it('센 칸이 칠해지지 않았으면 null — 값 있음은 주황 칸을 세지 않는다', () => {
+    expect(aggregationTone('count_not_empty', 'main', rows, [noMain])).toBeNull()
+  })
+
+  it('다른 칸을 칠하는 규칙·흐림(muted)·칸을 세지 않는 집계는 색을 잇지 않는다', () => {
+    const other = { ...noMain, target: 'sub' }
+    const muted = { ...noMain, style: { tone: 'muted' as const } }
+    expect(aggregationTone('count_empty', 'main', rows, [other])).toBeNull()
+    expect(aggregationTone('count_empty', 'main', rows, [muted])).toBeNull()
+    expect(aggregationTone('count', 'main', rows, [noMain])).toBeNull()
+    expect(aggregationTone('count_empty', 'main', rows, undefined)).toBeNull()
+  })
+
+  it('빈 칸이 하나도 없으면 null(빈 값 0 은 본문 색)', () => {
+    expect(aggregationTone('count_empty', 'main', [rows[0]!], [noMain])).toBeNull()
+  })
+})
+
+describe('resolveCardFormat — 제 색으로 말하는 자리(배지 · 숫자 띠)', () => {
+  const rule = {
+    id: 'gap',
+    target: 'gap',
+    when: { op: 'and' as const, children: [{ key: 'gap', op: 'gt' as const, value: 0 }] },
+    style: { tone: 'warning' as const },
+  }
+
+  it('그 속성을 대상으로 한 규칙은 칸 글자만 칠하고 카드 바탕은 두지 않는다', () => {
+    const { card, byKey } = resolveCardFormat([rule], { gap: 20 }, ['title', 'gap'], ['gap'])
+    expect(card).toBeNull()
+    expect(byKey.gap).toEqual({ tone: 'warning' })
+  })
+
+  it('지정하지 않으면 예전처럼 카드를 칠한다', () => {
+    expect(resolveCardFormat([rule], { gap: 20 }, ['title', 'gap']).card).toEqual({
+      tone: 'warning',
+    })
   })
 })

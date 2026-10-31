@@ -89,6 +89,7 @@ vi.mock('@oobleck/systheme', () => {
     ArrowLeftRight: makeIcon('arrow-lr'),
     CalendarDays: makeIcon('calendar'),
     Hash: makeIcon('hash'),
+    LayoutDashboard: makeIcon('layout-dashboard'),
     Link2: makeIcon('link2'),
     List: makeIcon('list'),
     Mail: makeIcon('mail'),
@@ -97,6 +98,8 @@ vi.mock('@oobleck/systheme', () => {
     SquareCheck: makeIcon('square-check'),
     Tags: makeIcon('tags'),
     Type: makeIcon('type'),
+    User: makeIcon('user'),
+    Users: makeIcon('users'),
     // GeoCellEditor(헤더/확정카드) · AddressAutocomplete(검색 아이콘) 가 쓰는 아이콘.
     MapPin: makeIcon('map-pin'),
     Check: makeIcon('check'),

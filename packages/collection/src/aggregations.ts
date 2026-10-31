@@ -5,7 +5,7 @@ import { dateValueStart } from './date-value'
 // 셀 값은 PropertyValue(스칼라/배열/null). 결과는 화면 표시용 문자열(빈 결과 = '').
 
 /** 값이 비어있는지 — null/undefined, 빈 문자열, 빈 배열. number/boolean(0/false) 는 비어있지 않음. */
-function isEmpty(v: PropertyValue | undefined): boolean {
+export function isEmptyCellValue(v: PropertyValue | undefined): boolean {
   if (v === null || v === undefined) return true
   if (typeof v === 'string') return v.length === 0
   if (Array.isArray(v)) return v.length === 0
@@ -44,12 +44,12 @@ export function computeAggregation(
   const n = values.length
 
   if (type === 'count') return String(n)
-  if (type === 'count_empty') return String(values.filter(isEmpty).length)
-  if (type === 'count_not_empty') return String(values.filter((v) => !isEmpty(v)).length)
+  if (type === 'count_empty') return String(values.filter(isEmptyCellValue).length)
+  if (type === 'count_not_empty') return String(values.filter((v) => !isEmptyCellValue(v)).length)
   if (type === 'count_unique') {
     const set = new Set<string>()
     for (const v of values) {
-      if (isEmpty(v)) continue
+      if (isEmptyCellValue(v)) continue
       if (Array.isArray(v)) for (const x of v) set.add(String(x))
       // 객체값(geo 등)은 String(v) 가 모두 "[object Object]" 로 뭉개져 서로 다른 위치가 1 로
       // 집계되는 버그가 있다. 코어→views 의존(레이어링 위반) 없이, 객체는 JSON.stringify 로

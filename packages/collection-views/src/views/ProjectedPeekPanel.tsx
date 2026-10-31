@@ -74,9 +74,15 @@ function usePeekMode(): [PeekMode, (m: PeekMode) => void] {
 export function ProjectedPeekPanel({
   target,
   onClose,
+  sideWidth = 560,
 }: {
   target: ProjectedPeekTarget | null
   onClose: () => void
+  /**
+   * 사이드 모드 패널 최대 폭(px, 화면 92% 를 넘지 않는다). 기본 560 — 속성 몇 줄 + 짧은 표처럼 내용이 좁은
+   * 미리보기(목록 행 미리보기 등)는 줄여서 뒤 목록을 더 남긴다.
+   */
+  sideWidth?: number
 }) {
   const c = projectedPeekCopy(useCollectionLocale())
   const [mode, setMode] = usePeekMode()
@@ -140,8 +146,10 @@ export function ProjectedPeekPanel({
           'transition-[width,max-width,height,border-radius] duration-200 ease-out',
           mode === 'center'
             ? 'h-[86vh] w-[min(960px,94vw)] rounded-2xl'
-            : 'h-full w-full max-w-[min(560px,92vw)] rounded-l-2xl',
+            : 'h-full w-full rounded-l-2xl',
         )}
+        // 사이드 폭은 호출부가 정한다 — 임의 숫자를 클래스로 만들 수 없어 style 로(기본 560 = 이전 max-w 와 같다).
+        style={mode === 'center' ? undefined : { maxWidth: `min(${sideWidth}px, 92vw)` }}
       >
         {/* 헤더 — 사이드/모달 토글 + 제목 + 닫기(projected 는 "전체 페이지로 열기" 없음 — 라우트 없음). */}
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
@@ -159,7 +167,9 @@ export function ProjectedPeekPanel({
               icon={<Monitor size={15} />}
             />
             {target.title ? (
-              <span className="ml-1 truncate text-sm text-fg-muted">{target.title}</span>
+              <span className="ml-1 truncate text-xs font-medium text-fg-muted">
+                {target.title}
+              </span>
             ) : null}
           </div>
           <button
@@ -173,7 +183,7 @@ export function ProjectedPeekPanel({
         </div>
         {/* 본문 — 전달 doc 를 정적 렌더(RecordDocumentView, onAction 위임). fetch 없음. */}
         <div className="min-h-0 flex-1 overflow-auto">
-          <div className="p-4">
+          <div className="p-5">
             <RecordDocumentView doc={target.doc} onAction={target.onAction} />
           </div>
         </div>

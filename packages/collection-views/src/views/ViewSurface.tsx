@@ -3,12 +3,13 @@
 import type { FC } from 'react'
 import type { LucideIcon } from '@oobleck/systheme'
 import type { QueryMode } from '@oobleck/collection'
-import type { TitleVariant } from './TableView'
+import type { RowSelection, TitleVariant } from './TableView'
 import type {
   AggregationType,
   BasePropertyDef,
   BasePropertyType,
   BlockPack,
+  ColumnToggle,
   PropertyDef,
   PropertyValue,
   RelationProvider,
@@ -20,6 +21,7 @@ import type {
   ViewType,
 } from '@oobleck/collection'
 import type { CollectionLocale } from '../i18n'
+import type { CollectionViewStatus } from './CollectionStatus'
 
 // @oobleck/collection — 뷰 surface 공유 계약 + facade(D-8, WAVE0/F4).
 //
@@ -51,9 +53,10 @@ export type ViewSurfaceProps<P = unknown> = {
   /**
    * 행/카드 열기(상세 이동).
    *
-   * 두 번째 인자는 원본 클릭 이벤트다 — 호스트가 ⌘/Ctrl/Shift+클릭을 "새 탭에서 열기"로
-   * 해석할 수 있게 넘긴다(MVOS 워크스페이스 탭). 표 뷰만 전달하고, 그 외 서피스는 아직
-   * 미전달이라 optional 이다.
+   * 두 번째 인자는 원본 클릭 이벤트다 — 호스트가 ⌘/Ctrl/Shift+클릭·가운데 클릭(button 1)을
+   * "새 탭에서 열기"로 해석할 수 있게 넘긴다(MVOS 워크스페이스 탭). 표 제목과 카드형 서피스
+   * (보드·갤러리·피드 = RecordCard, 리스트 행)가 전달한다. 키보드로 열거나 타임라인·캘린더·지도처럼
+   * 아직 미전달인 서피스가 있어 optional 이다.
    */
   onOpen?: (id: string, event?: import('react').MouseEvent) => void
   /**
@@ -91,6 +94,8 @@ export type ViewSurfaceProps<P = unknown> = {
   onAddProperty?: (def: BasePropertyDef) => void
   /** 컬럼 폭 변경(드래그 리사이즈) — (key, px). */
   onColumnResize?: (key: string, px: number) => void
+  /** 컬럼 폭 초기화(리사이즈 핸들 더블클릭) — (key). 상위는 뷰의 columnWidths 에서 키를 지운다. */
+  onColumnResetWidth?: (key: string) => void
   /** 컬럼 순서 변경 — 표시 순서대로의 키 배열. */
   onColumnReorder?: (orderedKeys: string[]) => void
   /** 컬럼 이름 변경 — (key, label). */
@@ -103,13 +108,18 @@ export type ViewSurfaceProps<P = unknown> = {
   renameScope?: 'all' | 'base'
   /** 컬럼 footer 집계 변경 — (key, type). */
   onAggregationChange?: (key: string, type: AggregationType) => void
-  /** 관계 자동완성 공급자 레지스트리(컬렉션 키 → provider). */
+  /**
+   * 관계 자동완성 공급자 레지스트리(컬렉션 키 → provider). provider 에 `records` 가 있으면 보드 카드의
+   * 관계 표(view.relationTable)도 이것으로 대상 레코드를 읽는다.
+   */
   relations?: Record<string, RelationProvider>
   /**
    * relation 컬럼 추가 시 "연결 대상" 후보(value=target, label=표시명). 미지정 시 relations 키를 value=label 로 폴백.
    * 워크스페이스처럼 target(노드 id)과 표시명(DB 이름)이 다를 때 라벨을 분리 제공하는 가산 채널(상품은 미전달 → 현행 동작).
    */
   relationTargetOptions?: RelationTargetOption[]
+  /** 「속성 추가」에 사람 타입을 보일까 — 자세한 계약은 TableView 의 동명 prop. */
+  peopleEnabled?: boolean
   /**
    * relation 셀의 연결 대상 열기 — (target, id). 지정 시 셀 칩에 "열기" affordance 가 켜진다(노션식 링크).
    * 미지정 시(상품 등) 칩은 편집만(현행 동작 불변). 워크스페이스는 연결된 인스턴스 행 페이지로 이동한다.
@@ -119,6 +129,10 @@ export type ViewSurfaceProps<P = unknown> = {
   onChangePropertyType?: (key: string, type: BasePropertyType) => void
   /** base 컬럼 삭제 — (key). */
   onDeleteProperty?: (key: string) => void
+  /** base 컬럼의 타입별 설정 창 열기(구조 속성 칸 · 배치, 수 단위) — 자세한 계약은 TableView 의 동명 prop. */
+  onConfigureProperty?: (key: string) => void
+  /** 「속성 추가」에 구조 속성 · 수 단위를 보일까 — 자세한 계약은 TableView 의 동명 prop. */
+  structEnabled?: boolean
   /**
    * (플라톤) 프로토타입(Form) 편집 모드 — true 면 상속 컬럼이 잠금 표시 대신 *편집 가능*이 되고, 컬럼
    * 메뉴에 "상속(Form) 지정/해제"가 노출된다. 미지정/false=일반 편집(상속 컬럼은 🔒·구조변경 차단).
@@ -126,6 +140,8 @@ export type ViewSurfaceProps<P = unknown> = {
   formMode?: boolean
   /** base 컬럼의 상속(inherited) 플래그 토글 — Form 모드에서만 노출. (key). */
   onToggleInherited?: (key: string) => void
+  /** 머리 메뉴의 켜고 끄는 설정 — 자세한 계약은 TableView 의 동명 prop. */
+  columnToggles?: (def: PropertyDef) => readonly ColumnToggle[]
   /**
    * 쿼리 실행 주체(headless.ts). 미지정='client' — 뷰가 records 전량에 filter/sort 를 적용(현행).
    * 'server' 면 이미 해소된 행이 온 것으로 보고 재적용하지 않는다(서버 페이지네이션 목록).
@@ -148,18 +164,29 @@ export type ViewSurfaceProps<P = unknown> = {
    * 전제: 가로·세로 스크롤을 모두 소유하는 overflow-auto 조상 안에서 렌더될 것(TableView 참조).
    */
   stickyHeader?: boolean
+  /**
+   * 본문 불러오기 상태(로딩·오류 + 다시 시도). 미지정 = 준비됨. 표는 컬럼 머리를 남기고 행 자리에,
+   * 다른 뷰는 본문 대신 상태 블록을 그린다(CollectionView facade 가 처리 — CollectionStatus.tsx).
+   */
+  status?: CollectionViewStatus
+  /** 행 선택(체크박스 열) — 자세한 계약은 TableView 의 동명 prop. 현재 table surface 만 해석한다. */
+  selection?: RowSelection
 }
 
 /**
  * 뷰가 지원하는 affordance 플래그 — 툴바/facade 가 어떤 컨트롤을 노출할지 결정(선언적).
  *  - group: groupBy 지원(board/gallery). - cover: 카드 커버 이미지. - cardSize: 카드 크기 옵션.
- *  - dateAxis: 날짜 축(timeline). 미지정 = 미지원.
+ *  - dateAxis: 날짜 축(timeline). - relationTable: 카드 관계 표(board). 미지정 = 미지원.
  */
 export type ViewSurfaceSupports = {
   group?: boolean
   cover?: boolean
   cardSize?: boolean
   dateAxis?: boolean
+  /** 카드 아래 관계 표(view.relationTable) — 관계 provider 의 `records` 로 대상 레코드를 그린다. */
+  relationTable?: boolean
+  /** 빈 그룹 열을 좁은 띠로 접기(view.collapseEmptyGroups) — 열이 가로로 서는 board 만. */
+  collapseEmptyGroups?: boolean
 }
 
 /**

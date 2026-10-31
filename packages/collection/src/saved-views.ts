@@ -164,7 +164,11 @@ export function sanitizePinnedViewIds(
 }
 
 /** 소유·기본 여부를 함께 보는 가드들의 입력. */
-export type SavedViewGuardContext = DefaultViewRef & { currentUserId?: string | null }
+export type SavedViewGuardContext = DefaultViewRef & {
+  currentUserId?: string | null
+  /** 관리자 — 남이 만든 **공유** 뷰도 고친다(이름·설정·공유 전환). 삭제는 여전히 만든 사람만. */
+  canManageAny?: boolean
+}
 
 /**
  * 탭에서 뺄 수 있는가 — 기본 뷰만 못 뺀다.
@@ -175,24 +179,35 @@ export function canRemoveViewFromTabs(viewId: string, opts: DefaultViewRef): boo
 }
 
 /**
- * 이름 변경·공유 전환이 가능한가 — 내 뷰이고 기본 뷰가 아닐 때.
- * 남의 공유 뷰는 고치지 않는다(복제해서 내 뷰로 만든 뒤 고친다). 기본 뷰는 화면이 만든 것이라
- * 어디에도 저장할 자리가 없다.
+ * 이름 변경·공유 전환이 가능한가 — 내 뷰, 또는 관리자에게는 남의 공유 뷰. 기본 뷰·시스템 뷰는 아니다.
+ * 관리자가 아니면 남의 공유 뷰는 고치지 않는다(복제해서 내 뷰로 만든 뒤 고친다). 기본 뷰는 화면이 만든
+ * 것이라 어디에도 저장할 자리가 없고, 시스템 뷰의 이름은 코드가 정한다.
  */
 export function canEditSavedView(view: SavedView, opts: SavedViewGuardContext): boolean {
-  if (view.id === opts.defaultViewId) return false
-  return isOwnSavedView(view, opts.currentUserId)
+  if (view.id === opts.defaultViewId || view.system) return false
+  if (isOwnSavedView(view, opts.currentUserId)) return true
+  return opts.canManageAny === true && isSharedSavedView(view)
 }
 
 /**
- * 삭제 가능한가 — 이름 변경과 같은 조건. 삭제는 **뷰 자체를 없애는 것**이고, 공유 뷰라면
- * 남의 화면에서도 사라진다. 그래서 소유자만 할 수 있다("탭에서 제거"와 헷갈리면 사고가 난다).
+ * 삭제 가능한가 — **만든 사람만**(관리자도 남의 뷰는 못 지운다). 삭제는 뷰 자체를 없애는 것이고,
+ * 공유 뷰라면 남의 화면에서도 사라진다("탭에서 제거"와 헷갈리면 사고가 난다).
  */
 export function canDeleteSavedView(view: SavedView, opts: SavedViewGuardContext): boolean {
-  return canEditSavedView(view, opts)
+  if (view.id === opts.defaultViewId || view.system) return false
+  return isOwnSavedView(view, opts.currentUserId)
 }
 
 /** 복제해서 내 뷰로 만들 수 있는가 — 못 고치는 뷰(남의 공유 뷰)에 주어지는 유일한 편집 경로. */
 export function canDuplicateSavedView(view: SavedView, opts: SavedViewGuardContext): boolean {
   return view.id !== opts.defaultViewId && !isOwnSavedView(view, opts.currentUserId)
+}
+
+/**
+ * 설정(컬럼·정렬·필터)을 고쳐 **저장**할 수 있는가 — 이름을 고칠 수 있는 뷰, 그리고 관리자에게는 시스템 뷰.
+ * 시스템 뷰는 이름은 못 바꾸지만 설정은 관리자가 모두를 위해 고친다.
+ */
+export function canSaveSavedViewConfig(view: SavedView, opts: SavedViewGuardContext): boolean {
+  if (view.system) return opts.canManageAny === true
+  return canEditSavedView(view, opts)
 }

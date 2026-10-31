@@ -4,7 +4,7 @@ import { type FC, useMemo } from 'react'
 import { cn } from '@oobleck/systheme'
 import type { PropertyValue } from '@oobleck/collection'
 import { viewGroups, type Row } from '@oobleck/collection'
-import { normalizeOptions } from '@oobleck/collection'
+import { normalizeOptions, isMultiValueType, isOptionBackedType } from '@oobleck/collection'
 import { toBars } from './chart-bars'
 import { useCollectionLocale } from '../i18n'
 import { chartViewCopy } from './ChartView.messages'
@@ -50,14 +50,14 @@ export const ChartView: FC<ViewSurfaceProps> = ({
   const propertySchema = schema ?? pack.propertySchema
   const isServerMode = queryMode === 'server'
   const groupByDef = view.groupBy ? propertySchema.find((d) => d.key === view.groupBy) : undefined
-  const isMulti = groupByDef?.type === 'multi_select'
+  const isMulti = groupByDef ? isMultiValueType(groupByDef.type) : false
 
   // 그룹 키 → 라벨/색 맵(ListView 동일 규칙) — select/multi_select 옵션에서 해석.
   const { groupLabelMap, groupColorMap } = useMemo(() => {
     const labelMap = new Map<string, string>()
     const colorMap = new Map<string, string>()
     if (!view.groupBy || !groupByDef) return { groupLabelMap: labelMap, groupColorMap: colorMap }
-    if (groupByDef.type === 'select' || groupByDef.type === 'multi_select') {
+    if (isOptionBackedType(groupByDef.type)) {
       const opts = normalizeOptions(groupByDef.options)
       for (const opt of opts) {
         labelMap.set(opt.value, opt.label ?? opt.value)

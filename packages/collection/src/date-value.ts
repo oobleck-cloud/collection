@@ -5,6 +5,8 @@
 // 항상 *시작이 앞*. 캘린더/정렬/필터/투영 등 값을 읽는 모든 곳은 dateValueStart 로 시작 성분을 뽑아 쓴다
 // (기간·시간 값에서도 깨지지 않게). SQL 투영(dateVal)은 시작 타임스탬프만 저장 → 정렬/필터/집계는 "시작 기준".
 
+import type { DateDisplayFormat } from './types'
+
 /** 시작 성분('/' 앞). 기간이 아니면 값 그대로. */
 export function dateValueStart(v: string): string {
   const i = v.indexOf('/')
@@ -114,15 +116,57 @@ export function buildDateValue(parts: {
   return toIso(parts.start, hasTime)
 }
 
-/** 표시용 한국어 문자열 — 단일/시간/기간 모두. 빈값이면 ''. */
-export function formatDateValueDisplay(v: string): string {
+/**
+ * 표시용 문자열 — 단일/시간/기간 모두. 빈값이면 ''.
+ * `format` 은 컬럼의 표시 모양(PropertyDef.dateFormat): 기본 'ko' 「2026. 10. 21.」, 'iso' 「2026-10-21」,
+ * 'relative' 「D-3」·「D-day」·「D+2」(오늘 = `now` 의 로컬 날짜, 시각은 무시하고 날짜 차이만 센다).
+ */
+export function formatDateValueDisplay(
+  v: string,
+  format: DateDisplayFormat = 'ko',
+  now: Date = new Date(),
+): string {
   const { start, end, hasTime } = parseDateValueParts(v)
   if (!start) return ''
-  const s = formatKo(start, hasTime)
-  return end ? `${s} ~ ${formatKo(end, hasTime)}` : s
+  const one = (d: Date) => formatDay(d, hasTime, format, now)
+  return end ? `${one(start)} ~ ${one(end)}` : one(start)
 }
 
-function formatKo(d: Date, hasTime: boolean): string {
-  const day = d.toLocaleDateString('ko-KR')
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * 오늘 기준 날짜 거리 — 「D-3」(3일 남음) · 「D-day」(오늘) · 「D+2」(2일 지남). 시각은 보지 않는다.
+ * 일광절약 전환이 있는 날도 하루가 23·25시간이라 반올림으로 하루 단위를 맞춘다.
+ */
+export function formatRelativeDay(d: Date, now: Date = new Date()): string {
+  const diff = dayDistance(d, now)
+  if (diff === 0) return 'D-day'
+  return diff > 0 ? `D-${diff}` : `D+${-diff}`
+}
+
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'] as const
+
+/** 「10/23(목)」 — 올해가 아니면 연도를 앞에 붙인다(「2025/10/23(목)」). */
+export function formatShortDay(d: Date, now: Date = new Date()): string {
+  const md = `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAY_KO[d.getDay()]})`
+  return d.getFullYear() === now.getFullYear() ? md : `${d.getFullYear()}/${md}`
+}
+
+/** 오늘 기준 날짜 거리(일) — 내일 1 · 오늘 0 · 어제 -1. 시각은 보지 않는다. */
+export function dayDistance(d: Date, now: Date = new Date()): number {
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  return Math.round((day - today) / DAY_MS)
+}
+
+function formatDay(d: Date, hasTime: boolean, format: DateDisplayFormat, now: Date): string {
+  const day =
+    format === 'relative'
+      ? formatRelativeDay(d, now)
+      : format === 'iso'
+        ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+        : format === 'short'
+          ? formatShortDay(d, now)
+          : d.toLocaleDateString('ko-KR')
   return hasTime ? `${day} ${pad(d.getHours())}:${pad(d.getMinutes())}` : day
 }

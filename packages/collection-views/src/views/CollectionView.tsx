@@ -27,6 +27,9 @@ import { TimelineView } from './TimelineView'
 import type { ViewSurfaceDef, ViewSurfaceProps } from './ViewSurface'
 import { CollectionLocaleProvider, resolveCollectionLocale, viewTypeLabel } from '../i18n'
 import { collectionViewCopy } from './CollectionView.messages'
+import { CollectionStatusBlock, isBlockingStatus } from './CollectionStatus'
+
+export type { CollectionViewStatus } from './CollectionStatus'
 
 // @oobleck/collection — 뷰 facade + 레지스트리(D-8, WAVE0/F4).
 //
@@ -53,6 +56,7 @@ const TableSurface: FC<ViewSurfaceProps> = ({
   onColumnHide,
   onAddProperty,
   onColumnResize,
+  onColumnResetWidth,
   onColumnReorder,
   onRenameColumn,
   renameScope,
@@ -61,16 +65,22 @@ const TableSurface: FC<ViewSurfaceProps> = ({
   onAggregationChange,
   relations,
   relationTargetOptions,
+  peopleEnabled,
   onOpenRelation,
   onChangePropertyType,
   onDeleteProperty,
+  onConfigureProperty,
+  structEnabled,
   onDeleteRow,
   formMode,
   onToggleInherited,
+  columnToggles,
   titleVariant,
   queryMode,
   totalCount,
   stickyHeader,
+  status,
+  selection,
 }) => (
   <TableView
     records={records}
@@ -88,6 +98,7 @@ const TableSurface: FC<ViewSurfaceProps> = ({
     onColumnHide={onColumnHide}
     onAddProperty={onAddProperty}
     onColumnResize={onColumnResize}
+    onColumnResetWidth={onColumnResetWidth}
     onColumnReorder={onColumnReorder}
     onRenameColumn={onRenameColumn}
     renameScope={renameScope}
@@ -96,20 +107,26 @@ const TableSurface: FC<ViewSurfaceProps> = ({
     onAggregationChange={onAggregationChange}
     relations={relations}
     relationTargetOptions={relationTargetOptions}
+    peopleEnabled={peopleEnabled}
     onOpenRelation={onOpenRelation}
     onChangePropertyType={onChangePropertyType}
     onDeleteProperty={onDeleteProperty}
+    onConfigureProperty={onConfigureProperty}
+    structEnabled={structEnabled}
     onDeleteRow={onDeleteRow}
     formMode={formMode}
     onToggleInherited={onToggleInherited}
+    columnToggles={columnToggles}
     titleVariant={titleVariant}
     queryMode={queryMode}
     totalCount={totalCount}
     stickyHeader={stickyHeader}
+    status={status}
+    selection={selection}
   />
 )
 
-/** BoardView adapter — onEditCell → BoardView.onEdit. group/cover/cardOrder 를 소비. */
+/** BoardView adapter — onEditCell → BoardView.onEdit. group/cover/cardOrder/cardSize/관계 표(relations)를 소비. */
 const BoardSurface: FC<ViewSurfaceProps> = ({
   records,
   pack,
@@ -120,6 +137,8 @@ const BoardSurface: FC<ViewSurfaceProps> = ({
   onEditCell,
   onCreate,
   onCardOrderChange,
+  relations,
+  queryMode,
 }) => (
   <BoardView
     records={records}
@@ -131,6 +150,8 @@ const BoardSurface: FC<ViewSurfaceProps> = ({
     onEdit={onEditCell}
     onCreate={onCreate}
     onCardOrderChange={onCardOrderChange}
+    relations={relations}
+    queryMode={queryMode}
   />
 )
 
@@ -278,7 +299,15 @@ export const VIEW_SURFACES: Partial<Record<ViewType, ViewSurfaceDef>> = {
     kind: 'board',
     label: '보드',
     icon: LayoutDashboard,
-    supports: { group: true, cover: true },
+    // cardSize — 보드는 열 폭이 카드 폭(S/M/L). relationTable — 카드 아래 관계 표(레이아웃 패널에서 고른다).
+    // collapseEmptyGroups — 카드 없는 열을 좁은 띠로.
+    supports: {
+      group: true,
+      cover: true,
+      cardSize: true,
+      relationTable: true,
+      collapseEmptyGroups: true,
+    },
     Renderer: BoardSurface,
   },
   gallery: {
@@ -368,10 +397,14 @@ export function CollectionView<P>(props: ViewSurfaceProps<P>) {
   const c = collectionViewCopy(locale)
   const kind = normalizeViewType(props.view.type)
   const def = VIEW_SURFACES[kind]
+  // 로딩·오류 — 표는 컬럼 머리를 남기고 행 자리에 그린다(TableView.status). 다른 뷰는 본문 대신 상태 블록.
+  const blocking = isBlockingStatus(props.status) && kind !== 'table' ? props.status : null
   // 하위 뷰가 useCollectionLocale() 로 로캘을 읽도록 프로바이더로 감싼다(prop drilling 없이 로캘만 흘림).
   return (
     <CollectionLocaleProvider locale={locale}>
-      {def ? (
+      {blocking ? (
+        <CollectionStatusBlock status={blocking} />
+      ) : def ? (
         // Renderer 는 ViewSurfaceProps(비제네릭) — P 는 BlockPack<P> 로 좁혀 들어가므로 호출부 호환.
         <def.Renderer {...props} />
       ) : (

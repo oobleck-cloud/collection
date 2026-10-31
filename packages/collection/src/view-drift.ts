@@ -104,11 +104,16 @@ function pruneConditionalFormats(
 }
 
 /**
- * visibleProps 정리 — 죽은 키를 걷어내고, **그 사이 새로 생긴 컬럼을 뒤에 붙인다**.
+ * visibleProps 정리 — 죽은 키를 걷어내고, **정말 처음 보는 컬럼만 뒤에 붙인다**.
  *
  * 새 컬럼을 붙이는 이유: 저장된 순간의 목록을 그대로 존중하면, 그 뒤 추가된 컬럼은 이 사용자
  * 화면에서 영원히 안 보인다(뷰를 저장했다는 이유만으로 신기능이 사라진다). 순서는 사용자가
  * 정한 것이 앞, 새 것이 뒤 — 사용자의 선택을 재배치하지 않으면서 새 컬럼을 드러낸다.
+ *
+ * "처음 보는"의 판정은 `knownProps`(뷰가 이미 아는 컬럼)로 한다. visibleProps 에 없다는 것만으로는
+ * 새 컬럼인지 사용자가 숨긴 컬럼인지 알 수 없고, 둘을 섞으면 **숨긴 컬럼이 새로고침마다
+ * 되살아난다**(주문 목록 「접수콜 진행상황」 사고). knownProps 가 없는 옛 뷰는 판정 근거가 없으니
+ * 예전처럼 빠진 것을 전부 새 컬럼으로 본다 — 숨김이 풀리는 쪽(넓히는 쪽)으로 무너진다.
  *
  * 전부 죽어서 남는 게 없으면 `undefined` 를 반환한다 — 빈 배열을 남기면 "선택 0개"가 아니라
  * resolveVisibleColumns 의 폴백(스키마 전체)로 접히긴 하지만, 그건 우연히 맞는 것이다.
@@ -116,13 +121,14 @@ function pruneConditionalFormats(
  */
 function pruneVisibleProps(
   visibleProps: readonly string[],
+  knownProps: readonly string[] | undefined,
   columnKeys: readonly string[],
   autoShowKeys: readonly string[],
 ): string[] | undefined {
-  const known = new Set(columnKeys)
-  const kept = visibleProps.filter((key) => known.has(key))
+  const live = new Set(columnKeys)
+  const kept = visibleProps.filter((key) => live.has(key))
   if (kept.length === 0) return undefined
-  const seen = new Set(kept)
+  const seen = new Set([...kept, ...(knownProps ?? [])])
   return [...kept, ...autoShowKeys.filter((key) => !seen.has(key))]
 }
 
@@ -138,6 +144,38 @@ function pruneAggregations(
 /** sort 정리 — 죽은 키의 정렬은 아무 일도 안 하는 정렬이다(compareByKey 가 항상 동률). */
 function pruneSort(sort: readonly Sort[], valueKeys: ReadonlySet<string>): Sort[] {
   return sort.filter((s) => valueKeys.has(s.key))
+}
+
+/**
+ * 표시 목록과 "아는 컬럼" 기록을 함께 정리한다(`next` 를 고친다 — reconcileViewConfig 의 사본).
+ * 둘은 한 쌍이라 따로 두면 한쪽만 고쳐진다: 표시 목록을 정리하는 판정이 기록에 기대고, 기록은
+ * 정리 결과를 전제로 다시 적힌다.
+ */
+function reconcileColumns(
+  saved: CollectionViewConfig,
+  keys: ViewKeySets,
+  next: CollectionViewConfig,
+): void {
+  if (saved.visibleProps) {
+    const visible = pruneVisibleProps(
+      saved.visibleProps,
+      saved.knownProps,
+      keys.columnKeys,
+      keys.autoShowKeys ?? keys.columnKeys,
+    )
+    if (visible) next.visibleProps = visible
+    else delete next.visibleProps
+  }
+  // 정리가 끝난 뷰는 **지금 스키마의 컬럼 전부를 안다** — 처음 보는 것은 방금 붙였고, 나머지는
+  // 보이거나(visibleProps) 사용자가 숨긴 것이다. 이걸 적어 두면 다음 저장부터 숨김이 지켜진다.
+  //  - 옛 뷰(기록 없음)도 여기서 기록이 생긴다. 서버로 되쓰지는 않으므로(composeState 주석)
+  //    사용자가 다음에 이 뷰를 저장할 때 함께 나간다.
+  //  - 예전 knownProps 와 합치지 않고 **갈아 끼운다**: 지금 스키마에 없는 키(지운 컬럼, 혹은
+  //    잠깐 못 읽은 커스텀 컬럼)를 계속 "안다"고 두면, 그 컬럼이 돌아왔을 때 숨김으로 읽혀
+  //    영영 안 보일 수 있다. 잊는 쪽은 최악이 "한 번 더 보인다"라 넓히는 쪽이다.
+  //  - visibleProps 가 없으면(기본값 폴백) 숨긴 것이 없으니 기록도 둘 이유가 없다.
+  if (next.visibleProps) next.knownProps = [...keys.columnKeys]
+  else delete next.knownProps
 }
 
 /**
@@ -157,24 +195,27 @@ export function reconcileViewConfig(
   const valueKeys = new Set(keys.valueKeys ?? keys.columnKeys)
   const next: CollectionViewConfig = { ...saved }
 
-  if (saved.visibleProps) {
-    const visible = pruneVisibleProps(
-      saved.visibleProps,
-      keys.columnKeys,
-      keys.autoShowKeys ?? keys.columnKeys,
-    )
-    if (visible) next.visibleProps = visible
-    else delete next.visibleProps
-  }
+  reconcileColumns(saved, keys, next)
   if (saved.sort) next.sort = pruneSort(saved.sort, valueKeys)
   if (saved.filters) next.filters = pruneFilterExpr(saved.filters, valueKeys)
-  if (saved.groupBy !== undefined && !columnKeys.has(saved.groupBy)) delete next.groupBy
+  if (saved.groupBy !== undefined && !columnKeys.has(saved.groupBy)) {
+    delete next.groupBy
+    delete next.groupEmptyAs
+  }
   if (saved.aggregations) {
     const aggregations = pruneAggregations(saved.aggregations, columnKeys)
     if (aggregations) next.aggregations = aggregations
     else delete next.aggregations
   }
   if (saved.coverKey !== undefined && !columnKeys.has(saved.coverKey)) delete next.coverKey
+  // 관계 표는 관계 속성이 살아 있어야 성립한다 — 죽었으면 통째로 뗀다(표 없는 카드로 폴백). 열(대상 속성)은
+  // 대상 스키마의 몫이라 여기서 모른다 — 렌더가 모르는 열을 건너뛴다(relationTableColumns).
+  if (saved.relationTable && !columnKeys.has(saved.relationTable.key)) delete next.relationTable
+  if (saved.columnWidths) {
+    const widths = pruneColumnWidths(saved.columnWidths, columnKeys)
+    if (widths) next.columnWidths = widths
+    else delete next.columnWidths
+  }
   if (saved.timeline) {
     // startKey 가 죽으면 축 자체가 성립하지 않는다 → 타임라인 설정을 통째로 뗀다(안내 상태로 폴백).
     if (!columnKeys.has(saved.timeline.startKey)) delete next.timeline
@@ -192,6 +233,18 @@ export function reconcileViewConfig(
   }
 
   return next
+}
+
+/**
+ * 사라진 컬럼의 폭은 떼어 낸다 — 남겨 두면 같은 키로 새 컬럼이 생길 때 엉뚱한 폭을 물려받는다.
+ * 남는 게 없으면 undefined(빈 객체를 남기지 않는다).
+ */
+function pruneColumnWidths(
+  widths: Record<string, number>,
+  columnKeys: Set<string>,
+): Record<string, number> | undefined {
+  const kept = Object.fromEntries(Object.entries(widths).filter(([k]) => columnKeys.has(k)))
+  return Object.keys(kept).length > 0 ? kept : undefined
 }
 
 /** 필터 트리가 참조하는 키를 모은다(재귀). */
@@ -218,6 +271,7 @@ export function collectViewConfigKeys(config: CollectionViewConfig): string[] {
   if (config.groupBy) keys.add(config.groupBy)
   if (config.aggregations) Object.keys(config.aggregations).forEach((k) => keys.add(k))
   if (config.coverKey) keys.add(config.coverKey)
+  if (config.relationTable) keys.add(config.relationTable.key)
   if (config.timeline) {
     keys.add(config.timeline.startKey)
     if (config.timeline.endKey) keys.add(config.timeline.endKey)
@@ -237,7 +291,44 @@ export function isViewConfigReconciled(
   saved: CollectionViewConfig,
   reconciled: CollectionViewConfig,
 ): boolean {
-  return JSON.stringify(saved) !== JSON.stringify(reconciled)
+  // knownProps 는 정리할 때마다 지금 스키마로 다시 적힌다 — 떨어진 것이 아니라 기록이라 뺀다.
+  return JSON.stringify(withoutKnownProps(saved)) !== JSON.stringify(withoutKnownProps(reconciled))
+}
+
+/**
+ * knownProps 를 뗀 설정 — "사용자가 무엇을 바꿨나"를 비교할 때 쓴다(초기화 버튼 노출 등).
+ * knownProps 는 정리·편집이 덧붙이는 기록이지 사용자가 고른 시야가 아니다.
+ */
+export function withoutKnownProps(config: CollectionViewConfig): CollectionViewConfig {
+  if (config.knownProps === undefined) return config
+  const { knownProps: _known, ...rest } = config
+  return rest
+}
+
+/**
+ * visibleProps 편집 뒤의 knownProps 갱신 — 편집 **전에 보이던 것**과 **후에 보이는 것**을 아는
+ * 컬럼에 더한다(순수).
+ *
+ * 왜 필요한가: knownProps 는 로드할 때 정리가 적지만, 세션 중에 생긴 컬럼(관리자가 방금 만든
+ * 커스텀 컬럼을 표에 세운 경우)이나 "초기화"로 기록이 지워진 설정은 거기 없다. 그 상태에서
+ * 컬럼을 숨기고 저장하면 다음 로드에 다시 "처음 보는 컬럼"으로 붙는다. 화면에 한 번이라도
+ * 섰던 컬럼은 정의상 사용자가 본 것이므로, 빠졌다면 숨긴 것이다.
+ *
+ * `fallbackVisible` 은 visibleProps 가 미지정일 때 화면이 실제로 세우던 목록(toViewConfig 의
+ * defaultVisible)이다 — 이걸 모르면 기본 시야에서 처음 숨긴 컬럼을 놓친다.
+ */
+export function trackKnownProps(
+  before: CollectionViewConfig,
+  after: CollectionViewConfig,
+  fallbackVisible: readonly string[],
+): CollectionViewConfig {
+  if (!after.visibleProps) return after
+  const known = new Set(before.knownProps ?? [])
+  for (const key of before.visibleProps ?? fallbackVisible) known.add(key)
+  for (const key of after.visibleProps) known.add(key)
+  const knownProps = [...known]
+  if (JSON.stringify(knownProps) === JSON.stringify(after.knownProps)) return after
+  return { ...after, knownProps }
 }
 
 /** SavedView 배열 전체를 정리 — 다중 명명 뷰(ViewTabs)의 로드 경로용. */

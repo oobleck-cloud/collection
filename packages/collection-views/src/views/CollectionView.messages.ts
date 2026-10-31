@@ -13,6 +13,26 @@ const M = {
     en: 'Unknown view: {kind}',
     'zh-Hans': '未知视图：{kind}',
   } satisfies Localized,
+  loading: {
+    default: '불러오고 있어요',
+    en: 'Loading…',
+    'zh-Hans': '正在加载…',
+  } satisfies Localized,
+  errorTitle: {
+    default: '불러오지 못했어요',
+    en: 'Couldn’t load',
+    'zh-Hans': '加载失败',
+  } satisfies Localized,
+  errorMessage: {
+    default: '잠시 뒤 다시 시도해 주세요.',
+    en: 'Please try again in a moment.',
+    'zh-Hans': '请稍后重试。',
+  } satisfies Localized,
+  retry: {
+    default: '다시 시도',
+    en: 'Try again',
+    'zh-Hans': '重试',
+  } satisfies Localized,
 }
 
 export function collectionViewCopy(locale: CollectionLocale) {
@@ -20,5 +40,9 @@ export function collectionViewCopy(locale: CollectionLocale) {
     viewPreparing: (label: string) =>
       pickLocalized(M.viewPreparing, locale).replace('{label}', label),
     unknownView: (kind: string) => pickLocalized(M.unknownView, locale).replace('{kind}', kind),
+    loading: pickLocalized(M.loading, locale),
+    errorTitle: pickLocalized(M.errorTitle, locale),
+    errorMessage: pickLocalized(M.errorMessage, locale),
+    retry: pickLocalized(M.retry, locale),
   }
 }

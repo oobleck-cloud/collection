@@ -30,6 +30,7 @@ vi.mock('@oobleck/systheme', () => {
       'EyeOff',
       'FileText',
       'Hash',
+      'LayoutDashboard',
       'Link2',
       'List',
       'Lock',
@@ -43,6 +44,8 @@ vi.mock('@oobleck/systheme', () => {
       'Tags',
       'Trash2',
       'Type',
+      'User',
+      'Users',
     ].map((n) => [n, makeIcon(n.toLowerCase())]),
   )
 
@@ -97,6 +100,11 @@ import { TableView } from './TableView'
 
 afterEach(cleanup)
 
+/** 라벨은 Tag 안의 말줄임 span 에 있다 — 색은 그 라벨을 감싼 Tag(data-color)에서 읽는다. */
+function chipOf(label: string): HTMLElement {
+  return screen.getByText(label).closest('[data-color]') as HTMLElement
+}
+
 function makePack(schema: PropertyDef[]): BlockPack<Record<string, PropertyValue>> {
   return {
     propertySchema: schema,
@@ -133,7 +141,7 @@ describe('ReadonlyCell — select 색 칩', () => {
       },
     ]
     renderReadonly(schema, { title: '행1', kind: 'subscription-plan' })
-    const chip = screen.getByText('구독 플랜') // 값(kind 키)이 아니라 옵션 label
+    const chip = chipOf('구독 플랜') // 값(kind 키)이 아니라 옵션 label
     expect(chip.getAttribute('data-color')).toBe('blue')
   })
 
@@ -143,7 +151,7 @@ describe('ReadonlyCell — select 색 칩', () => {
       { key: 'k', label: 'K', type: 'select', source: 'projection', origin: 'preset' },
     ]
     renderReadonly(schema, { title: '행1', k: 'anything' })
-    const chip = screen.getByText('anything')
+    const chip = chipOf('anything')
     // 해시색은 팔레트 7색 중 하나 — 존재하고 비어있지 않다(과거처럼 무조건 default 회색이 아님).
     const color = chip.getAttribute('data-color')
     expect(['gray', 'blue', 'green', 'orange', 'red', 'purple', 'teal']).toContain(color)
@@ -177,7 +185,7 @@ describe('ReadonlyCell — multi_select 색 칩', () => {
       },
     ]
     renderReadonly(schema, { title: '행1', tags: ['a', 'b'] })
-    expect(screen.getByText('A').getAttribute('data-color')).toBe('red')
-    expect(screen.getByText('B').getAttribute('data-color')).toBe('teal')
+    expect(chipOf('A').getAttribute('data-color')).toBe('red')
+    expect(chipOf('B').getAttribute('data-color')).toBe('teal')
   })
 })

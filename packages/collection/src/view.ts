@@ -156,9 +156,28 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
  *  안 되는 자리라 규칙을 한 벌로 맞춘다.)
  */
 function alignDateGranularity(cell: PropertyValue, value: PropertyValue): PropertyValue {
-  if (typeof cell !== 'string' || typeof value !== 'string' || !DATE_ONLY.test(value)) return cell
+  if (typeof cell !== 'string' || typeof value !== 'string') return cell
+  if (DATETIME_MINUTE.test(value)) return alignToMinute(cell)
+  if (!DATE_ONLY.test(value)) return cell
   const day = /^\d{4}-\d{2}-\d{2}/.exec(cell)
   return day ? day[0] : cell
+}
+
+/** `YYYY-MM-DDTHH:mm` — 조건이 "그 분"을 가리키는지 판별(상대값 `오늘 12:00` 도 이 모양으로 풀린다). */
+const DATETIME_MINUTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/
+
+/**
+ * 조건이 "그 분"이면 셀도 로컬 분(`YYYY-MM-DDTHH:mm`)으로 접는다 — 셀은 초·오프셋을 달고 있어(`…T03:00:00Z`) 그대로는 `= 12:00`
+ * 이 한 건도 못 맞힌다. 날짜만 든 셀은 그날 0시로 읽는다(`Date.parse` 는 날짜만 든 값을 UTC 로 읽어 시각대만큼 어긋난다).
+ */
+function alignToMinute(cell: string): string {
+  const start = dateValueStart(cell)
+  if (DATE_ONLY.test(start)) return `${start}T00:00`
+  const t = Date.parse(start)
+  if (Number.isNaN(t)) return cell
+  const d = new Date(t)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 /** 단일 (op, value, cell) 술어. 타입 비의존 — 값 형태로 의미를 정한다. */
@@ -192,6 +211,12 @@ function matchOp(op: FilterOp, cell: PropertyValue, value: PropertyValue): boole
         value !== undefined &&
         asArray(cell).includes(stringifyValue(value))
       )
+    // 값 목록이 비어 있으면 아직 고르는 중이다 — 0건으로 무너뜨리지 않고 제약 없음으로 둔다
+    // (서버 브리지가 미완성 조건을 떨구는 것과 같은 답).
+    case 'in':
+      return isEmptyValue(value ?? null) || overlaps(cell, value)
+    case 'not_in':
+      return isEmptyValue(value ?? null) || !overlaps(cell, value)
   }
 }
 
@@ -209,6 +234,12 @@ function compareNumeric(
   if (op === 'gte') return a >= b
   if (op === 'lt') return a < b
   return a <= b
+}
+
+/** in/not_in — 셀(단일·다중값)과 값 목록이 하나라도 겹치는가. */
+function overlaps(cell: PropertyValue, value: PropertyValue | undefined): boolean {
+  const wanted = new Set(asArray(value ?? null))
+  return asArray(cell).some((v) => wanted.has(v))
 }
 
 /** eq/neq 동등 비교 — 배열은 동일 멤버 집합(순서 무관), 그 외는 원시 동등. */
@@ -356,12 +387,20 @@ function keyOf(v: PropertyValue): string {
   return String(v)
 }
 
-function applyGroup<P>(rows: Row<P>[], groupBy: string, multi: boolean): RowGroup<P>[] {
+function applyGroup<P>(
+  rows: Row<P>[],
+  groupBy: string,
+  multi: boolean,
+  emptyAs: string | undefined,
+): RowGroup<P>[] {
   const order: string[] = [] // 그룹 첫 등장 순서 보존
   const buckets = new Map<string, Row<P>[]>()
   for (const row of rows) {
     // multi_select 면 한 행이 여러 키로 fan-out(여러 그룹에 등장). 단일이면 1개 키.
-    const keys = groupKeysOf(readProp(row.props as Props, groupBy), multi)
+    // 빈 값을 정해 둔 그룹으로 보는 보기(groupEmptyAs)면 「없음」 대신 그 그룹에 넣는다.
+    const keys = groupKeysOf(readProp(row.props as Props, groupBy), multi).map((k) =>
+      k === GROUP_EMPTY && emptyAs ? emptyAs : k,
+    )
     for (const key of keys) {
       let bucket = buckets.get(key)
       if (!bucket) {
@@ -464,7 +503,7 @@ export function viewGroups<P>(
 ): RowGroup<P>[] {
   const rows = opts.preFiltered ? records : viewRows(records, view)
   if (!view.groupBy) return [{ key: GROUP_EMPTY, rows }]
-  const grouped = applyGroup(rows, view.groupBy, opts.multiGroup ?? false)
+  const grouped = applyGroup(rows, view.groupBy, opts.multiGroup ?? false, view.groupEmptyAs)
   const hideEmpty = opts.hideEmptyGroups ?? view.hideEmptyGroups ?? false
   const filtered = hideEmpty ? grouped.filter((g) => g.rows.length > 0) : grouped
   return sortGroups(filtered, view.groupSort, opts.groupLabelMap)

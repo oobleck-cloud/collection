@@ -1,13 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { Lock, MoreHorizontal, Tooltip, Users, cn } from '@oobleck/systheme'
-import type { SavedView } from '@oobleck/collection'
-import { isSharedSavedView, resolveTabViews } from '@oobleck/collection'
+import {
+  Lock,
+  MoreHorizontal,
+  Tooltip,
+  Users,
+  beginListReorder,
+  cn,
+  reorderArray,
+} from '@oobleck/systheme'
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+
 import { useCollectionLocale } from '../i18n'
-import { ViewDrawer } from './ViewDrawer'
+import { isSharedSavedView, resolveTabViews } from '@oobleck/collection'
+
 import { ViewTabMenu } from './view-tab-menu'
+import { ViewDrawer } from './ViewDrawer'
 import { viewTabsCopy } from './ViewTabs.messages'
+
+import type { SavedView } from '@oobleck/collection'
 
 // @oobleck/collection — 뷰 탭 줄(허브스팟식).
 //
@@ -18,6 +29,10 @@ import { viewTabsCopy } from './ViewTabs.messages'
 // 탭 메뉴에서 가장 조심할 자리는 **"탭에서 제거"와 "뷰 삭제"의 구별**이다. 앞은 내 화면에서만
 // 치우는 것이고 뷰는 서랍에 남는다. 뒤는 뷰 자체를 없애고, 공유 뷰라면 남의 화면에서도 사라진다.
 // 그래서 둘을 구분선으로 가르고, 각각 아이콘·색·한 줄 설명을 달리 준다.
+//
+// 꺼내 둔 탭은 끌어서 순서를 바꾼다(가로 실시간 스왑 — DS listReorder). 기본 뷰는 첫 자리 고정이라
+// 끌리지도 않고 자리를 내주지도 않는다. 4px 넘게 움직여야 끌기로 보고, 끈 직후의 클릭은 삼킨다
+// (안 그러면 놓는 순간 탭이 전환되거나 메뉴가 열린다).
 
 export type ViewTabsProps = {
   /** 서랍에 보이는 뷰 전체(내 비공개 + 조직 공유). 탭에 다 서지 않는다. */
@@ -29,6 +44,8 @@ export type ViewTabsProps = {
   defaultViewId: string
   /** 현재 사용자 — 소유 판정용. 미지정이면 ownerId 없는 뷰만 내 것으로 본다. */
   currentUserId?: string | null
+  /** 관리자 — 남의 공유 뷰도 이름 변경·공유 전환(삭제는 아님). */
+  canManageAny?: boolean
   onSwitch: (id: string) => void
   /** 서랍에서 꺼내기 / 탭에서 제거(뷰는 남는다). */
   onPin: (id: string) => void
@@ -42,6 +59,8 @@ export type ViewTabsProps = {
   onShare: (id: string) => void
   /** 남의 공유 뷰를 복제해 내 뷰로 — 못 고치는 뷰의 유일한 편집 경로. */
   onDuplicate: (id: string) => void
+  /** 꺼내 둔 탭의 새 순서(기본 뷰 제외) — 끌어서 놓았을 때. 없으면 끌기가 꺼진다. */
+  onReorder?: (pinnedViewIds: string[]) => void
   /** inline=true: 외부 wrapper(border-b/mb-2) 없이 탭 콘텐츠만 렌더(ViewHeader 등과 합성 시). */
   inline?: boolean
 }
@@ -59,6 +78,7 @@ function ViewTab({
   active,
   defaultViewId,
   currentUserId,
+  canManageAny,
   onSwitch,
   onRename,
   onShare,
@@ -70,6 +90,7 @@ function ViewTab({
   active: boolean
   defaultViewId: string
   currentUserId?: string | null
+  canManageAny?: boolean
   onSwitch: () => void
   onRename: (name: string) => void
   onShare: () => void
@@ -144,6 +165,7 @@ function ViewTab({
       view={view}
       defaultViewId={defaultViewId}
       currentUserId={currentUserId}
+      canManageAny={canManageAny}
       open={menuOpen}
       onOpenChange={setMenuOpen}
       onRenameStart={() => {
@@ -180,6 +202,7 @@ export function ViewTabs({
   activeId,
   defaultViewId,
   currentUserId,
+  canManageAny,
   onSwitch,
   onPin,
   onUnpin,
@@ -188,25 +211,32 @@ export function ViewTabs({
   onDelete,
   onShare,
   onDuplicate,
+  onReorder,
   inline,
 }: ViewTabsProps) {
   const tabs = resolveTabViews(views, pinnedViewIds, { defaultViewId })
+  const drag = useTabDrag(
+    tabs.filter((v) => v.id !== defaultViewId).map((v) => v.id),
+    onReorder,
+  )
   const tabItems = (
     <>
       {tabs.map((v) => (
-        <ViewTab
-          key={v.id}
-          view={v}
-          active={v.id === activeId}
-          defaultViewId={defaultViewId}
-          currentUserId={currentUserId}
-          onSwitch={() => onSwitch(v.id)}
-          onRename={(name) => onRename(v.id, name)}
-          onShare={() => onShare(v.id)}
-          onDuplicate={() => onDuplicate(v.id)}
-          onUnpin={() => onUnpin(v.id)}
-          onDelete={() => onDelete(v.id)}
-        />
+        <DraggableTab key={v.id} id={v.id} drag={v.id === defaultViewId ? null : drag}>
+          <ViewTab
+            view={v}
+            active={v.id === activeId}
+            defaultViewId={defaultViewId}
+            currentUserId={currentUserId}
+            canManageAny={canManageAny}
+            onSwitch={() => onSwitch(v.id)}
+            onRename={(name) => onRename(v.id, name)}
+            onShare={() => onShare(v.id)}
+            onDuplicate={() => onDuplicate(v.id)}
+            onUnpin={() => onUnpin(v.id)}
+            onDelete={() => onDelete(v.id)}
+          />
+        </DraggableTab>
       ))}
       <ViewDrawer
         views={views}
@@ -231,5 +261,98 @@ export function ViewTabs({
     <div className="mb-2 flex flex-wrap items-center gap-1 border-b border-border py-1">
       {tabItems}
     </div>
+  )
+}
+
+/** 끌기를 시작했다고 보는 움직임(px) — 그 아래는 클릭이다. */
+const DRAG_THRESHOLD = 4
+
+type TabDrag = {
+  register: (id: string) => (el: HTMLSpanElement | null) => void
+  onPointerDown: (id: string) => (e: ReactPointerEvent) => void
+  /** 방금 끌었으면 true 를 돌려주고 플래그를 지운다 — 놓는 순간의 클릭을 삼킨다. */
+  consumeClick: () => boolean
+}
+
+/** 꺼내 둔 탭(기본 뷰 제외) 가로 끌기 정렬. onReorder 가 없거나 탭이 하나뿐이면 null. */
+function useTabDrag(ids: string[], onReorder?: (ids: string[]) => void): TabDrag | null {
+  const els = useRef(new Map<string, HTMLSpanElement>())
+  const dragged = useRef(false)
+  if (!onReorder || ids.length < 2) return null
+
+  return {
+    register: (id) => (el) => {
+      if (el) els.current.set(id, el)
+      else els.current.delete(id)
+    },
+    onPointerDown: (id) => (e) => {
+      if (e.button !== 0) return
+      // 이름 고치는 중(input)에는 끌지 않는다 — 글자 선택이 끌기가 되면 안 된다.
+      if ((e.target as HTMLElement).closest('input')) return
+      const fromIndex = ids.indexOf(id)
+      const startX = e.clientX
+      const onMove = (ev: PointerEvent) => {
+        if (Math.abs(ev.clientX - startX) < DRAG_THRESHOLD) return
+        cleanup()
+        const items: { dom: HTMLElement }[] = []
+        for (const tid of ids) {
+          const el = els.current.get(tid)
+          if (!el) return
+          items.push({ dom: el })
+        }
+        dragged.current = true
+        beginListReorder({
+          items,
+          fromIndex,
+          axis: 'x',
+          startX,
+          currentX: ev.clientX,
+          draggingClass: 'opacity-90',
+          onCommit: (from, to) => onReorder(reorderArray(ids, from, to)),
+        })
+      }
+      const cleanup = () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', cleanup)
+        window.removeEventListener('pointercancel', cleanup)
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', cleanup)
+      window.addEventListener('pointercancel', cleanup)
+    },
+    consumeClick: () => {
+      const was = dragged.current
+      dragged.current = false
+      return was
+    },
+  }
+}
+
+/** 탭 하나를 끌 수 있게 감싼다. drag 가 null 이면(기본 뷰·끌기 꺼짐) 그대로 둔다. */
+function DraggableTab({
+  id,
+  drag,
+  children,
+}: {
+  id: string
+  drag: TabDrag | null
+  children: React.ReactNode
+}) {
+  if (!drag) return <>{children}</>
+  return (
+    <span
+      ref={drag.register(id)}
+      data-view-tab={id}
+      className="inline-flex min-w-0 shrink-0 cursor-grab touch-pan-y active:cursor-grabbing"
+      onPointerDown={drag.onPointerDown(id)}
+      onClickCapture={(e) => {
+        if (drag.consumeClick()) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
+      }}
+    >
+      {children}
+    </span>
   )
 }

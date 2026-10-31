@@ -15,6 +15,8 @@ const OP: Record<FilterOp, Localized> = {
   lte: { default: '≤' },
   has: { default: '포함', en: 'Contains', 'zh-Hans': '包含' },
   not_has: { default: '미포함', en: 'Does not contain', 'zh-Hans': '不包含' },
+  in: { default: '다음 중 하나', en: 'Is any of', 'zh-Hans': '属于其中之一' },
+  not_in: { default: '다음 중 아님', en: 'Is none of', 'zh-Hans': '不属于其中任何一个' },
   is_empty: { default: '비어있음', en: 'Is empty', 'zh-Hans': '为空' },
   is_not_empty: { default: '값 있음', en: 'Has value', 'zh-Hans': '有值' },
 }
@@ -25,6 +27,31 @@ const M = {
     en: 'Fixed date',
     'zh-Hans': '固定日期',
   } satisfies Localized,
+  dateTimeOfDay: { default: '시각', en: 'Time', 'zh-Hans': '时间' } satisfies Localized,
+  dateModeCustomDay: {
+    default: 'N일 전/후 (직접)',
+    en: 'N days ago/later (custom)',
+    'zh-Hans': 'N 天前/后（自定义）',
+  } satisfies Localized,
+  dateModeCustomHour: {
+    default: 'N시간 전/후 (직접)',
+    en: 'N hours ago/later (custom)',
+    'zh-Hans': 'N 小时前/后（自定义）',
+  } satisfies Localized,
+  relativeDayCount: { default: '일 수', en: 'Days', 'zh-Hans': '天数' } satisfies Localized,
+  relativeHourCount: { default: '시간 수', en: 'Hours', 'zh-Hans': '小时数' } satisfies Localized,
+  /** 「직접」 숫자 칸 옆의 단위 글 — NumberInput 은 단위를 그리지 않는다. */
+  relativeDayUnit: { default: '일', en: 'days', 'zh-Hans': '天' } satisfies Localized,
+  relativeHourUnit: { default: '시간', en: 'hours', 'zh-Hans': '小时' } satisfies Localized,
+  relativeDirection: { default: '방향', en: 'Direction', 'zh-Hans': '方向' } satisfies Localized,
+  relativePast: { default: '전', en: 'Ago', 'zh-Hans': '前' } satisfies Localized,
+  relativeFuture: { default: '후', en: 'Later', 'zh-Hans': '后' } satisfies Localized,
+  relativeDayOrdinal: {
+    default: '{n}일 차',
+    en: 'Day {n}',
+    'zh-Hans': '第 {n} 天',
+  } satisfies Localized,
+  relativeNow: { default: '지금', en: 'Now', 'zh-Hans': '现在' } satisfies Localized,
   checkboxChecked: { default: '체크됨', en: 'Checked', 'zh-Hans': '已勾选' } satisfies Localized,
   checkboxUnchecked: {
     default: '미체크',
@@ -121,12 +148,57 @@ const M = {
     'zh-Hans': '筛选 {count}',
   } satisfies Localized,
   filter: { default: '필터', en: 'Filter', 'zh-Hans': '筛选' } satisfies Localized,
+
+  rollupCount: { default: '개수', en: 'Count', 'zh-Hans': '数量' } satisfies Localized,
+  rollupSum: { default: '합계', en: 'sum', 'zh-Hans': '合计' } satisfies Localized,
+  rollupMin: { default: '최소', en: 'min', 'zh-Hans': '最小' } satisfies Localized,
+  rollupMax: { default: '최대', en: 'max', 'zh-Hans': '最大' } satisfies Localized,
+  rollupAvg: { default: '평균', en: 'avg', 'zh-Hans': '平均' } satisfies Localized,
+  rollupGroup: { default: '관계', en: 'Relations', 'zh-Hans': '关联' } satisfies Localized,
+  rollupSourceOption: {
+    default: '{source} (집계)',
+    en: '{source} (rollup)',
+    'zh-Hans': '{source}（汇总）',
+  } satisfies Localized,
+  rollupWhere: {
+    default: '이어진 {source} 중',
+    en: 'Of linked {source} where',
+    'zh-Hans': '关联的{source}中',
+  } satisfies Localized,
+  rollupAllLinked: {
+    default: '조건 없음 — 이어진 {source} 전부',
+    en: 'No conditions — all linked {source}',
+    'zh-Hans': '无条件 — 全部关联{source}',
+  } satisfies Localized,
+  rollupAddCondition: {
+    default: '+ {source} 조건',
+    en: '+ {source} condition',
+    'zh-Hans': '+ {source}条件',
+  } satisfies Localized,
+  relationSearchPlaceholder: {
+    default: '검색해서 고르기',
+    en: 'Search to pick',
+    'zh-Hans': '搜索并选择',
+  } satisfies Localized,
   collapse: { default: '축소', en: 'Collapse', 'zh-Hans': '收起' } satisfies Localized,
 }
 
 export function viewToolbarCopy(locale: CollectionLocale) {
   return {
     dateModeFixed: pickLocalized(M.dateModeFixed, locale),
+    dateTimeOfDay: pickLocalized(M.dateTimeOfDay, locale),
+    dateModeCustomDay: pickLocalized(M.dateModeCustomDay, locale),
+    dateModeCustomHour: pickLocalized(M.dateModeCustomHour, locale),
+    relativeDayCount: pickLocalized(M.relativeDayCount, locale),
+    relativeHourCount: pickLocalized(M.relativeHourCount, locale),
+    relativeDayUnit: pickLocalized(M.relativeDayUnit, locale),
+    relativeHourUnit: pickLocalized(M.relativeHourUnit, locale),
+    relativeDirection: pickLocalized(M.relativeDirection, locale),
+    relativePast: pickLocalized(M.relativePast, locale),
+    relativeFuture: pickLocalized(M.relativeFuture, locale),
+    relativeDayOrdinal: (n: number) =>
+      pickLocalized(M.relativeDayOrdinal, locale).replace('{n}', String(n)),
+    relativeNow: pickLocalized(M.relativeNow, locale),
     opLabel: (op: FilterOp) => pickLocalized(OP[op], locale),
     checkboxChecked: pickLocalized(M.checkboxChecked, locale),
     checkboxUnchecked: pickLocalized(M.checkboxUnchecked, locale),
@@ -158,6 +230,23 @@ export function viewToolbarCopy(locale: CollectionLocale) {
     filterBadge: (count: number) =>
       pickLocalized(M.filterBadge, locale).replace('{count}', String(count)),
     filter: pickLocalized(M.filter, locale),
+    rollupCount: pickLocalized(M.rollupCount, locale),
+    rollupAgg: {
+      sum: pickLocalized(M.rollupSum, locale),
+      min: pickLocalized(M.rollupMin, locale),
+      max: pickLocalized(M.rollupMax, locale),
+      avg: pickLocalized(M.rollupAvg, locale),
+    },
+    rollupGroup: pickLocalized(M.rollupGroup, locale),
+    rollupSourceOption: (source: string) =>
+      pickLocalized(M.rollupSourceOption, locale).replace('{source}', source),
+    rollupWhere: (source: string) =>
+      pickLocalized(M.rollupWhere, locale).replace('{source}', source),
+    rollupAllLinked: (source: string) =>
+      pickLocalized(M.rollupAllLinked, locale).replace('{source}', source),
+    rollupAddCondition: (source: string) =>
+      pickLocalized(M.rollupAddCondition, locale).replace('{source}', source),
+    relationSearchPlaceholder: pickLocalized(M.relationSearchPlaceholder, locale),
     collapse: pickLocalized(M.collapse, locale),
   }
 }

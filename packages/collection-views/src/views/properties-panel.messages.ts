@@ -48,6 +48,31 @@ const M = {
     en: 'All properties are shown.',
     'zh-Hans': '所有属性都已显示。',
   } satisfies Localized,
+  searchPlaceholder: {
+    default: '속성 검색',
+    en: 'Search properties',
+    'zh-Hans': '搜索属性',
+  } satisfies Localized,
+  noResults: {
+    default: '찾는 속성이 없습니다.',
+    en: 'No matching properties.',
+    'zh-Hans': '没有匹配的属性。',
+  } satisfies Localized,
+  ungrouped: {
+    default: '그룹 없음',
+    en: 'Ungrouped',
+    'zh-Hans': '未分组',
+  } satisfies Localized,
+  showGroup: {
+    default: '전체 표시',
+    en: 'Show group',
+    'zh-Hans': '显示全部',
+  } satisfies Localized,
+  toggleGroupAria: {
+    default: '{label} 그룹 펼치기/접기',
+    en: 'Expand/collapse {label}',
+    'zh-Hans': '展开/折叠{label}',
+  } satisfies Localized,
   slotLabel: {
     default: '프로퍼티',
     en: 'Properties',
@@ -66,6 +91,12 @@ export function propertiesPanelCopy(locale: CollectionLocale) {
     showAll: pickLocalized(M.showAll, locale),
     showAria: (label: string) => pickLocalized(M.showAria, locale).replace('{label}', label),
     allShown: pickLocalized(M.allShown, locale),
+    searchPlaceholder: pickLocalized(M.searchPlaceholder, locale),
+    noResults: pickLocalized(M.noResults, locale),
+    ungrouped: pickLocalized(M.ungrouped, locale),
+    showGroup: pickLocalized(M.showGroup, locale),
+    toggleGroupAria: (label: string) =>
+      pickLocalized(M.toggleGroupAria, locale).replace('{label}', label),
     slotLabel: pickLocalized(M.slotLabel, locale),
   }
 }

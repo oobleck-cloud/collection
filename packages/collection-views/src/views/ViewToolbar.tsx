@@ -25,6 +25,7 @@ import type {
   PropertyDef,
   PropertyType,
   PropertyValue,
+  RelationProvider,
   Sort,
   ViewConfig,
 } from '@oobleck/collection'
@@ -103,6 +104,11 @@ export type ViewToolbarProps = {
    * >> 버튼이 호버 시에만 표시된다.
    */
   inline?: boolean
+  /**
+   * 관계 provider 레지스트리 — 레이아웃 패널의 「관계 표」가 대상 레코드의 열 후보(`records.schema`)를 읽는다.
+   * 미지정이면 관계 표 열은 고를 수 없고(provider 기본 열), 관계 속성만 고른다.
+   */
+  relations?: Record<string, RelationProvider>
 }
 
 // ─── 필터/정렬 아이콘 ─────────────────────────────────────────────────────────
@@ -364,6 +370,7 @@ export function ViewToolbar({
   onSearchChange,
   rowQueryControls = true,
   inline,
+  relations,
 }: ViewToolbarProps) {
   const locale = useCollectionLocale()
   const c = viewToolbarCopy(locale)
@@ -377,7 +384,7 @@ export function ViewToolbar({
   const sortCount = view.sort.length
   const filterCount = totalFilterCount(view.filters)
 
-  const layoutSlot = buildLayoutSlot(view, schema, onViewChange, locale)
+  const layoutSlot = buildLayoutSlot(view, schema, onViewChange, locale, relations)
   const propertiesSlot = hubSlots.find((s) => s.id === 'properties')
   const remainingSlots = hubSlots.filter((s) => s.id !== 'properties')
   // collapse 시 허브에 레이아웃·프로퍼티 포함 — 개별 버튼이 숨겨지므로 여기서 접근 가능해야 함

@@ -18,6 +18,8 @@
 //   - 렌더 → 측정 → 재렌더의 깜빡임이 없다.
 //   - 표 컬럼은 몇 px 오차가 문제되지 않는다. 정확도가 필요한 자리는 `autoSize.extraPx` 로 보정한다.
 
+import { formatDateValueDisplay } from './date-value'
+
 import type { PropertyDef, PropertyValue } from './types'
 
 /** 문자 폭 계수(폰트 크기 대비). 한글·한자·가나는 전각이라 1em, 라틴은 자모마다 다르다. */
@@ -99,6 +101,9 @@ function displayTextFor(def: PropertyDef, props: Record<string, PropertyValue>):
   if (value === null || value === undefined) return ''
   if (Array.isArray(value)) return value.join(', ')
   if (typeof value === 'object') return ''
+  // 날짜는 셀이 그리는 글자(「2026. 10. 21.」)로 잰다 — 저장값(「2026-10-21」)으로 재면 칸이 좁아 날짜가 두 줄로 꺾인다.
+  if (def.type === 'date' && typeof value === 'string')
+    return formatDateValueDisplay(value, def.dateFormat) || value
   return String(value)
 }
 

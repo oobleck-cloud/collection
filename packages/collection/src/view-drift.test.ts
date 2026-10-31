@@ -7,6 +7,8 @@ import {
   isViewConfigReconciled,
   reconcileSavedViewConfigs,
   reconcileViewConfig,
+  trackKnownProps,
+  withoutKnownProps,
 } from './view-drift'
 
 import type { CollectionViewConfig, PropertyDef, PropertyValue } from './types'
@@ -36,6 +38,88 @@ describe('reconcileViewConfig — visibleProps', () => {
     // 실제 렌더 경로까지 확인 — 이게 "표가 하얗게 비는" 사고의 지점이다.
     const view = toViewConfig(out, KEYS.columnKeys)
     expect(resolveVisibleColumns(SCHEMA, view)).toHaveLength(3)
+  })
+})
+
+describe('reconcileViewConfig — 숨긴 컬럼 vs 새 컬럼(knownProps)', () => {
+  it('아는 컬럼인데 표시 목록에 없으면 사용자가 숨긴 것이다 — 다시 붙이지 않는다', () => {
+    const out = reconcileViewConfig(
+      { visibleProps: ['name', 'status'], knownProps: ['name', 'status', 'amount'] },
+      KEYS,
+    )
+    expect(out.visibleProps).toEqual(['name', 'status'])
+  })
+
+  it('아는 컬럼에도 없으면 정말 새로 생긴 컬럼이다 — 뒤에 붙는다', () => {
+    const out = reconcileViewConfig(
+      { visibleProps: ['name'], knownProps: ['name', 'status'] },
+      KEYS,
+    )
+    // status 는 숨긴 것, amount 는 저장 뒤에 생긴 것.
+    expect(out.visibleProps).toEqual(['name', 'amount'])
+  })
+
+  it('기록 없는 옛 뷰는 예전처럼 빠진 컬럼을 다 붙이고, 이번 스키마를 기록해 둔다', () => {
+    const out = reconcileViewConfig({ visibleProps: ['name'] }, KEYS)
+    expect(out.visibleProps).toEqual(['name', 'status', 'amount'])
+    expect(out.knownProps).toEqual(['name', 'status', 'amount'])
+  })
+
+  it('왕복 — 옛 뷰를 열어 숨기고 저장하면, 다음 로드에도 숨김이 남는다', () => {
+    const loaded = reconcileViewConfig({ visibleProps: ['name', 'status'] }, KEYS)
+    // 사용자가 amount 를 숨기고 저장 — 편집은 다른 필드를 그대로 둔 채 visibleProps 만 바꾼다.
+    const saved = { ...loaded, visibleProps: ['name', 'status'] }
+    const reloaded = reconcileViewConfig(saved, KEYS)
+    expect(reloaded.visibleProps).toEqual(['name', 'status'])
+    // 그 뒤 컬럼이 하나 생기면 그것만 붙는다.
+    const grown = reconcileViewConfig(saved, { columnKeys: [...KEYS.columnKeys, 'x:new'] })
+    expect(grown.visibleProps).toEqual(['name', 'status', 'x:new'])
+  })
+
+  it('기록은 지금 스키마로 갈아 끼운다 — 사라진 컬럼을 계속 "안다"고 두지 않는다', () => {
+    const out = reconcileViewConfig(
+      { visibleProps: ['name'], knownProps: ['name', 'gone', 'status', 'amount'] },
+      KEYS,
+    )
+    expect(out.knownProps).toEqual(['name', 'status', 'amount'])
+  })
+
+  it('기본 숨김 컬럼은 아는 컬럼으로 기록되되 저절로 서지 않는다', () => {
+    const keys = { columnKeys: [...KEYS.columnKeys, 'x:meta'], autoShowKeys: KEYS.columnKeys }
+    const out = reconcileViewConfig({ visibleProps: ['name'] }, keys)
+    expect(out.visibleProps).toEqual(['name', 'status', 'amount'])
+    expect(out.knownProps).toContain('x:meta')
+  })
+
+  it('표시 목록이 없거나 전부 죽으면 기록도 뗀다 — 숨긴 것이 없는 기본 시야다', () => {
+    expect(reconcileViewConfig({ knownProps: ['name'] }, KEYS).knownProps).toBeUndefined()
+    const out = reconcileViewConfig({ visibleProps: ['gone'], knownProps: ['gone'] }, KEYS)
+    expect(out.visibleProps).toBeUndefined()
+    expect(out.knownProps).toBeUndefined()
+  })
+})
+
+describe('trackKnownProps', () => {
+  it('편집 전에 보이던 컬럼을 숨기면 아는 컬럼으로 남는다', () => {
+    const before = { visibleProps: ['name', 'status'], knownProps: ['name', 'status'] }
+    const out = trackKnownProps(before, { ...before, visibleProps: ['name'] }, [])
+    expect(out.knownProps).toEqual(['name', 'status'])
+  })
+
+  it('표시 목록이 미지정(기본 시야)이었으면 화면이 세우던 목록을 기준으로 삼는다', () => {
+    const out = trackKnownProps({}, { visibleProps: ['name'] }, ['name', 'status', 'amount'])
+    expect(out.knownProps).toEqual(['name', 'status', 'amount'])
+  })
+
+  it('세션 중에 세운 새 컬럼도 아는 컬럼이 된다 — 나중에 숨겨도 되살아나지 않게', () => {
+    const before = { visibleProps: ['name'], knownProps: ['name'] }
+    const out = trackKnownProps(before, { ...before, visibleProps: ['name', 'x:new'] }, [])
+    expect(out.knownProps).toEqual(['name', 'x:new'])
+  })
+
+  it('표시 목록이 없는 편집이면 그대로 둔다', () => {
+    const after = { rowHeight: 'L' as const }
+    expect(trackKnownProps({}, after, ['name'])).toBe(after)
   })
 })
 
@@ -200,6 +284,17 @@ describe('reconcileViewConfig — 그 밖의 키 참조 설정', () => {
     ).toEqual({ startKey: 'name' })
   })
 
+  it('relationTable — 관계 속성이 죽으면 통째로 떼고, 살아 있으면 열은 그대로 둔다', () => {
+    expect(
+      reconcileViewConfig({ relationTable: { key: 'gone', maxRows: 3 } }, KEYS).relationTable,
+    ).toBeUndefined()
+    // 열은 대상 스키마의 키라 이 컬렉션의 키 집합으로 판정하지 않는다.
+    expect(
+      reconcileViewConfig({ relationTable: { key: 'name', columns: ['elsewhere'] } }, KEYS)
+        .relationTable,
+    ).toEqual({ key: 'name', columns: ['elsewhere'] })
+  })
+
   it('키와 무관한 설정(type·rowHeight·rowOrder 등)은 손대지 않는다', () => {
     const saved: CollectionViewConfig = {
       type: 'board',
@@ -234,6 +329,7 @@ describe('collectViewConfigKeys', () => {
       groupBy: 'status',
       aggregations: { amount: 'sum' },
       coverKey: 'cover',
+      relationTable: { key: 'related' },
       timeline: { startKey: 'from', endKey: 'to' },
       conditionalFormats: [
         {
@@ -245,7 +341,17 @@ describe('collectViewConfigKeys', () => {
       ],
     })
     expect(new Set(keys)).toEqual(
-      new Set(['name', 'amount', 'status', 'nested', 'cover', 'from', 'to', '__derived']),
+      new Set([
+        'name',
+        'amount',
+        'status',
+        'nested',
+        'cover',
+        'related',
+        'from',
+        'to',
+        '__derived',
+      ]),
     )
   })
 
@@ -278,6 +384,12 @@ describe('isViewConfigReconciled', () => {
     expect(isViewConfigReconciled(clean, reconcileViewConfig(clean, KEYS))).toBe(false)
     const dirty: CollectionViewConfig = { sort: [{ key: 'gone', dir: 'asc' }] }
     expect(isViewConfigReconciled(dirty, reconcileViewConfig(dirty, KEYS))).toBe(true)
+  })
+
+  it('knownProps 기록만 바뀐 것은 떨어진 게 아니다', () => {
+    const legacy: CollectionViewConfig = { visibleProps: ['name', 'status', 'amount'] }
+    expect(isViewConfigReconciled(legacy, reconcileViewConfig(legacy, KEYS))).toBe(false)
+    expect(withoutKnownProps({ rowHeight: 'L', knownProps: ['name'] })).toEqual({ rowHeight: 'L' })
   })
 })
 

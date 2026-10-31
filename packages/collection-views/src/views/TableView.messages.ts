@@ -107,6 +107,8 @@ const M = {
   } satisfies Localized,
   singleRef: { default: '단일 참조', en: 'Single', 'zh-Hans': '单个' } satisfies Localized,
   multiRef: { default: '다중 참조', en: 'Multiple', 'zh-Hans': '多个' } satisfies Localized,
+  singlePerson: { default: '한 명', en: 'One person', 'zh-Hans': '一人' } satisfies Localized,
+  multiPerson: { default: '여러 명', en: 'Multiple people', 'zh-Hans': '多人' } satisfies Localized,
   addPropertyDialog: {
     default: '새 속성 추가',
     en: 'Add property',
@@ -131,6 +133,12 @@ const M = {
   cancel: { default: '취소', en: 'Cancel', 'zh-Hans': '取消' } satisfies Localized,
   add: { default: '추가', en: 'Add', 'zh-Hans': '添加' } satisfies Localized,
   moveRowAria: { default: '행 이동', en: 'Move row', 'zh-Hans': '移动行' } satisfies Localized,
+  selectRowAria: { default: '행 선택', en: 'Select row', 'zh-Hans': '选择行' } satisfies Localized,
+  selectAllRowsAria: {
+    default: '보이는 행 모두 선택',
+    en: 'Select all visible rows',
+    'zh-Hans': '选择所有可见行',
+  } satisfies Localized,
   resizeColumnAria: {
     default: '컬럼 폭 조정',
     en: 'Resize column',
@@ -163,6 +171,9 @@ const TYPE_LABEL: Record<string, Localized> = {
   phone: { default: '전화번호', en: 'Phone', 'zh-Hans': '电话' },
   relation: { default: '관계', en: 'Relation', 'zh-Hans': '关系' },
   geo: { default: '위치', en: 'Location', 'zh-Hans': '位置' },
+  person: { default: '사람', en: 'Person', 'zh-Hans': '人员' },
+  multi_person: { default: '사람(여러 명)', en: 'People', 'zh-Hans': '多人' },
+  struct: { default: '구조', en: 'Structure', 'zh-Hans': '结构' },
 }
 
 // PropertyType 별 설명(타입 피커의 보조 문구).
@@ -186,7 +197,37 @@ const TYPE_DESCRIPTION: Record<string, Localized> = {
     en: 'Coordinates + street address',
     'zh-Hans': '经纬度 + 街道地址',
   },
+  person: {
+    default: '등록된 계정에서 고르기',
+    en: 'Pick from registered accounts',
+    'zh-Hans': '从已注册账号中选择',
+  },
+  struct: {
+    default: '다른 속성을 비교 · 범위 · 경로로 묶기',
+    en: 'Group other properties as compare · range · route',
+    'zh-Hans': '将其他属性组合为对比 · 范围 · 路线',
+  },
 }
+
+const STRUCT_COPY = {
+  structNextStep: {
+    default: '추가하면 칸과 배치를 고르는 창이 열립니다.',
+    en: 'After adding, choose slots and layout.',
+    'zh-Hans': '添加后选择槽位和布局。',
+  },
+  configureStruct: {
+    default: '칸 · 배치 편집',
+    en: 'Edit slots · layout',
+    'zh-Hans': '编辑槽位 · 布局',
+  },
+  configureUnit: { default: '단위', en: 'Unit', 'zh-Hans': '单位' },
+  manwonSuspect: {
+    default:
+      '이 칸은 만 원 단위입니다. 원으로 적으셨다면 {value}으로 적을까요?\n(취소하면 적은 그대로 둡니다)',
+    en: 'This field is in 10,000 KRW. Save as {value}?\n(Cancel keeps the typed value)',
+    'zh-Hans': '此字段以万韩元为单位。保存为 {value}？\n(取消则保留输入值)',
+  },
+} satisfies Record<string, Localized>
 
 const COLOR_NAME: Record<string, Localized> = {
   gray: M.colorGray,
@@ -201,6 +242,10 @@ const COLOR_NAME: Record<string, Localized> = {
 export function tableViewCopy(locale: CollectionLocale) {
   const p = (m: Localized) => pickLocalized(m, locale)
   return {
+    structNextStep: p(STRUCT_COPY.structNextStep),
+    configureStruct: p(STRUCT_COPY.configureStruct),
+    configureUnit: p(STRUCT_COPY.configureUnit),
+    manwonSuspect: (value: string) => p(STRUCT_COPY.manwonSuspect).replace('{value}', value),
     selectPlaceholder: p(M.selectPlaceholder),
     inputPlaceholder: p(M.inputPlaceholder),
     cellEditAria: p(M.cellEditAria),
@@ -234,6 +279,8 @@ export function tableViewCopy(locale: CollectionLocale) {
     linkTarget: p(M.linkTarget),
     singleRef: p(M.singleRef),
     multiRef: p(M.multiRef),
+    singlePerson: p(M.singlePerson),
+    multiPerson: p(M.multiPerson),
     addPropertyDialog: p(M.addPropertyDialog),
     addProperty: p(M.addProperty),
     propertyName: p(M.propertyName),
@@ -242,6 +289,8 @@ export function tableViewCopy(locale: CollectionLocale) {
     cancel: p(M.cancel),
     add: p(M.add),
     moveRowAria: p(M.moveRowAria),
+    selectRowAria: p(M.selectRowAria),
+    selectAllRowsAria: p(M.selectAllRowsAria),
     resizeColumnAria: p(M.resizeColumnAria),
     createDefault: p(M.createDefault),
     groupLabel: (group: string) => (GROUP[group] ? p(GROUP[group]) : group),

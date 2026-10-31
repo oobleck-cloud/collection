@@ -5,6 +5,7 @@ import type {
   CollectionSchemaConfig,
   CollectionViewConfig,
   PropertyDef,
+  PropertyType,
   SavedView,
   SelectOption,
   TagColorName,
@@ -37,6 +38,26 @@ export function optionColor(value: string): OptionColor {
   return TAG_PALETTE[h % TAG_PALETTE.length]
 }
 
+/**
+ * 값을 옵션 목록으로 풀어 읽는 타입인가 — select 계열(정의된 선택지)과 person 계열(사람 명단).
+ * 필터 값 선택·그룹 라벨·칩 라벨이 이 둘을 같은 자리에서 다룬다.
+ */
+export function isOptionBackedType(type: PropertyType): boolean {
+  return (
+    type === 'select' || type === 'multi_select' || type === 'person' || type === 'multi_person'
+  )
+}
+
+/** 값이 여러 개인 타입인가 — 그룹 fan-out·has/not_has 가 갈린다. */
+export function isMultiValueType(type: PropertyType): boolean {
+  return type === 'multi_select' || type === 'multi_person'
+}
+
+/** 사람(계정) 타입인가. */
+export function isPersonType(type: PropertyType): boolean {
+  return type === 'person' || type === 'multi_person'
+}
+
 /** options(string[] | SelectOption[]) → SelectOption[] 정규화 — label·color 를 채운다(불변). */
 export function normalizeOptions(options: PropertyDef['options']): SelectOption[] {
   if (!options) return []
@@ -46,6 +67,8 @@ export function normalizeOptions(options: PropertyDef['options']): SelectOption[
       value: opt.value,
       label: opt.label ?? opt.value,
       color: opt.color ?? optionColor(opt.value),
+      ...(opt.hint !== undefined ? { hint: opt.hint } : {}),
+      ...(opt.inactive !== undefined ? { inactive: opt.inactive } : {}),
     }
   })
 }
@@ -200,17 +223,23 @@ type ViewConfigSettingsKey = keyof Omit<ViewConfig, 'type' | 'filters' | 'sort' 
  */
 export const VIEW_SETTINGS_KEYS = [
   'groupBy',
+  'groupEmptyAs',
   'aggregations',
   'cardOrder',
   'rowOrder',
   'coverKey',
   'cardSize',
+  'cardPropLabels',
+  'relationTable',
+  'cardLayout',
   'timeline',
   'hideEmptyGroups',
+  'collapseEmptyGroups',
   'rowHeight',
   'wrapCells',
   'groupSort',
   'conditionalFormats',
+  'columnWidths',
 ] as const satisfies readonly ViewConfigSettingsKey[]
 
 /**
@@ -238,19 +267,27 @@ export function toViewConfig(saved: CollectionViewConfig, defaultVisible: string
     sort: saved.sort ?? [],
     visibleProps: saved.visibleProps ?? defaultVisible,
     ...(saved.groupBy ? { groupBy: saved.groupBy } : {}),
+    ...(saved.groupEmptyAs ? { groupEmptyAs: saved.groupEmptyAs } : {}),
     ...(saved.aggregations ? { aggregations: saved.aggregations } : {}),
     ...(saved.cardOrder ? { cardOrder: saved.cardOrder } : {}),
     ...(saved.rowOrder ? { rowOrder: saved.rowOrder } : {}),
     ...(saved.coverKey ? { coverKey: saved.coverKey } : {}),
     ...(saved.cardSize ? { cardSize: saved.cardSize } : {}),
+    ...(saved.cardPropLabels !== undefined ? { cardPropLabels: saved.cardPropLabels } : {}),
+    ...(saved.relationTable ? { relationTable: saved.relationTable } : {}),
+    ...(saved.cardLayout ? { cardLayout: saved.cardLayout } : {}),
     ...(saved.timeline ? { timeline: saved.timeline } : {}),
     ...(saved.hideEmptyGroups !== undefined ? { hideEmptyGroups: saved.hideEmptyGroups } : {}),
+    ...(saved.collapseEmptyGroups !== undefined
+      ? { collapseEmptyGroups: saved.collapseEmptyGroups }
+      : {}),
     ...(saved.rowHeight ? { rowHeight: saved.rowHeight } : {}),
     ...(saved.wrapCells !== undefined ? { wrapCells: saved.wrapCells } : {}),
     ...(saved.groupSort ? { groupSort: saved.groupSort } : {}),
     // 빈 배열도 "규칙 없음"과 같지만, 사용자가 규칙을 다 지운 상태를 그대로 보존한다
     // (length 로 거르면 마지막 규칙 삭제가 undefined 로 접혀 이후 diff·영속이 헷갈린다).
     ...(saved.conditionalFormats ? { conditionalFormats: saved.conditionalFormats } : {}),
+    ...(saved.columnWidths ? { columnWidths: saved.columnWidths } : {}),
   }
 }
 

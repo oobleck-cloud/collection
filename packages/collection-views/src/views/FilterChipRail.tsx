@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Plus, Popover, X, cn } from '@oobleck/systheme'
 import type {
   FilterCondition,
@@ -16,6 +16,13 @@ import { useCollectionLocale } from '../i18n'
 import { filterChipRailCopy } from './FilterChipRail.messages'
 import { viewToolbarCopy } from './ViewToolbar.messages'
 import { FilterConditionRow, FilterGroupEditor } from './filter-builder'
+import {
+  rollupMeasureLabel,
+  rollupSourceOf,
+  rollupTargetDef,
+  useFilterRollups,
+} from './filter-rollup'
+import type { RollupSource } from '@oobleck/collection'
 
 // @oobleck/collection — 적용된 필터의 칩 레일(Linear/GitHub Issues 문법).
 //
@@ -36,6 +43,11 @@ export type FilterChipRailProps = {
   view: ViewConfig
   /** 칩 제거·편집기 변경을 반영할 부분 갱신 — ViewToolbar 와 같은 계약. */
   onViewChange: (next: Partial<ViewConfig>) => void
+  /**
+   * 보이기만 한다 — 칩 편집·✕·「＋ 필터」·「모두 지우기」를 그리지 않는다. 다른 자리(일괄 발송 대화상자 등)가
+   * 「이 조건으로」를 같은 말로 보일 때 쓴다. 조건이 없으면 아무것도 그리지 않는다.
+   */
+  readOnly?: boolean
   className?: string
 }
 
@@ -70,28 +82,157 @@ function conditionValueText(
   // 제거할 수 있어야 한다.
   if (v == null || v === '') return '…'
   if (typeof v === 'boolean') return v ? checkboxLabels.checked : checkboxLabels.unchecked
-  if (Array.isArray(v)) return v.join(', ')
+  if (Array.isArray(v)) {
+    if (v.length === 0) return '…'
+    const labels = v.map((one) => optionLabel(def, one))
+    // 칩은 한 줄이다 — 셋을 넘으면 나머지는 개수로 접는다(전부는 칩을 눌러 편집기에서 본다).
+    return labels.length > 3
+      ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}`
+      : labels.join(', ')
+  }
   // 상대값은 뜻을 그대로 보인다 — 칩이 "오늘" 이라고 말해야 저장된 뷰가 왜 매일 다른 행을
   // 보여주는지 읽힌다. 여기서 오늘 날짜로 풀어 보이면 내일 그 칩이 거짓말을 한다.
   const relative = relativeValueLabel(v)
   if (relative) return relative
   if (typeof v === 'object') return '…'
+  // 그 분(`2026-10-17T12:00`)은 날짜와 시각 사이를 띄워 읽힌다.
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return v.replace('T', ' ')
 
-  // select 값은 옵션 라벨로 — 칩은 사용자가 고른 말로 말해야 한다.
+  return optionLabel(def, String(v))
+}
+
+/** select 값은 옵션 라벨로 — 칩은 사용자가 고른 말로 말해야 한다. */
+function optionLabel(def: PropertyDef | undefined, v: string): string {
   if (def && Array.isArray(def.options)) {
     const opt = def.options.find((o) => (typeof o === 'string' ? o === v : o.value === v))
     if (opt && typeof opt !== 'string') return opt.label ?? opt.value
   }
-  return String(v)
+  return v
+}
+
+/**
+ * 칩의 연산자 표기. 단일값 컬럼의 「다음 중 하나」 는 `=` 뒤에 값을 늘어놓는 편이
+ * 낱말보다 빨리 읽힌다(`상태 = 취소됨, 중복됨`). 다중값 컬럼은 `=` 가 「정확히 이 묶음」으로
+ * 읽힐 수 있어 낱말을 쓴다.
+ */
+function chipOp(def: PropertyDef | undefined, op: FilterOp, label: (op: FilterOp) => string) {
+  if ((op === 'in' || op === 'not_in') && def && (def.type === 'select' || def.type === 'person')) {
+    return op === 'in' ? '=' : '≠'
+  }
+  return OP_SYMBOL[op] ?? label(op)
+}
+
+type ChipText = { label: string; op: string | null; value: string | null }
+
+/** 조건 하나의 칩 말(라벨 · 연산자 · 값) — 편집 레일과 읽기 전용 트리가 같은 말을 쓴다. */
+function conditionChip(
+  schema: PropertyDef[],
+  condition: FilterCondition,
+  t: ReturnType<typeof viewToolbarCopy>,
+  rollups: readonly RollupSource[] = [],
+): ChipText {
+  if (condition.rollup) return rollupChip(condition, rollupSourceOf(rollups, condition.key), t)
+  const def = schema.find((d) => d.key === condition.key)
+  return {
+    label: def?.label ?? condition.key,
+    op: chipOp(def, condition.op, t.opLabel),
+    value: conditionValueText(def, condition, {
+      checked: t.checkboxChecked,
+      unchecked: t.checkboxUnchecked,
+    }),
+  }
+}
+
+/**
+ * 롤업 조건의 칩 — 「견적 개수 · 주문 = 1002, 상태 ≠ lost」 ≥ 1. 대상 조건은 라벨 뒤에 같은 말로 이어 적는다
+ * (참조값은 칩 한 줄에서 해상하지 않는다 — 번호가 곧 주문·파트너 번호다).
+ */
+function rollupChip(
+  condition: FilterCondition,
+  source: RollupSource | undefined,
+  t: ReturnType<typeof viewToolbarCopy>,
+): ChipText {
+  const rollup = condition.rollup!
+  const where = rollup.where
+    .filter((n): n is FilterCondition => !isFilterGroup(n))
+    .map((w) => {
+      const chip = conditionChip(source?.schema ?? [], w, t)
+      const def = rollupTargetDef(source, w.key)
+      return [def?.label ?? chip.label, chip.op, chip.value].filter(Boolean).join(' ')
+    })
+  const head = `${source?.label ?? condition.key} ${rollupMeasureLabel(source, rollup.agg, rollup.field, t)}`
+  return {
+    label: where.length > 0 ? `${head} · ${where.join(', ')}` : head,
+    op: chipOp(undefined, condition.op, t.opLabel),
+    value: conditionValueText(undefined, condition, {
+      checked: t.checkboxChecked,
+      unchecked: t.checkboxUnchecked,
+    }),
+  }
+}
+
+function StaticChip({ chip }: { chip: ChipText }) {
+  return (
+    <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/8 px-2.5 text-xs">
+      <span className="text-fg-muted">{chip.label}</span>
+      {chip.op !== null && <span className="text-fg-muted/70">{chip.op}</span>}
+      {chip.value !== null && <span className="font-medium text-primary">{chip.value}</span>}
+    </span>
+  )
+}
+
+/**
+ * 보이기만 하는 조건 트리 — 편집·제거 입구 없이, 하위 그룹도 접지 않고 편다(`(… AND …) OR (…)`). 레일은 한 줄을 지키려
+ * 그룹을 「그룹 · N」으로 접지만, 읽기 전용 자리(일괄 발송의 「대상 조건」)는 무엇에 보내는지가 그대로 읽혀야 한다.
+ * 결합어는 편집기 토글과 같은 AND/OR 다.
+ */
+function ReadOnlyFilterTree({
+  schema,
+  group,
+  nested = false,
+}: {
+  schema: PropertyDef[]
+  group: FilterGroup
+  nested?: boolean
+}) {
+  const t = viewToolbarCopy(useCollectionLocale())
+  const rollups = useFilterRollups()
+  const joiner = group.op === 'and' ? 'AND' : 'OR'
+  return (
+    <span
+      className={cn(
+        'flex min-w-0 flex-wrap items-center gap-1.5',
+        nested && 'rounded-xl border border-dashed border-border px-1.5 py-1',
+      )}
+    >
+      {group.children.map((child, i) => (
+        <Fragment key={i}>
+          {i > 0 && <span className="text-[11px] font-medium text-fg-muted">{joiner}</span>}
+          {isFilterGroup(child) ? (
+            <ReadOnlyFilterTree schema={schema} group={child} nested />
+          ) : (
+            <StaticChip chip={conditionChip(schema, child, t, rollups)} />
+          )}
+        </Fragment>
+      ))}
+    </span>
+  )
 }
 
 /** 동시에 열리는 편집기는 하나 — 칩 인덱스 또는 "＋ 필터"(add). */
 type OpenEditor = number | 'add' | null
 
-export function FilterChipRail({ schema, view, onViewChange, className }: FilterChipRailProps) {
+export function FilterChipRail({
+  schema,
+  view,
+  onViewChange,
+  readOnly = false,
+  className,
+}: FilterChipRailProps) {
   const locale = useCollectionLocale()
   const c = filterChipRailCopy(locale)
   const t = viewToolbarCopy(locale)
+  const rollups = useFilterRollups()
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null)
 
   const root = view.filters
@@ -116,19 +257,22 @@ export function FilterChipRail({ schema, view, onViewChange, className }: Filter
         value: null,
       }
     }
-    const def = schema.find((d) => d.key === child.key)
     return {
       key: `${child.key}_${i}`,
       index: i,
       child,
-      label: def?.label ?? child.key,
-      op: OP_SYMBOL[child.op] ?? t.opLabel(child.op),
-      value: conditionValueText(def, child, {
-        checked: t.checkboxChecked,
-        unchecked: t.checkboxUnchecked,
-      }),
+      ...conditionChip(schema, child, t, rollups),
     }
   })
+
+  if (readOnly) {
+    if (root.children.length === 0) return null
+    return (
+      <div className={cn('min-w-0', className)}>
+        <ReadOnlyFilterTree schema={schema} group={root} />
+      </div>
+    )
+  }
 
   return (
     <div className={cn('flex min-w-0 flex-wrap items-center gap-1.5', className)}>

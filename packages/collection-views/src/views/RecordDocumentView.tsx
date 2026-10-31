@@ -15,7 +15,7 @@
 import { Button, Tag, Text, cn } from '@oobleck/systheme'
 import type { BlockDocument, PropertyValue } from '@oobleck/collection'
 import { optionColor } from '@oobleck/collection'
-import { relativeDateLabel } from '@oobleck/collection'
+import { relativeValueLabel } from '@oobleck/collection'
 import { isButtonValue, isTagValue } from '@oobleck/collection'
 import type { DocBlockNode } from '@oobleck/collection'
 
@@ -37,6 +37,7 @@ function blockText(node: DocBlockNode): string {
  * 지금 생성 경로는 병합을 만들지 않지만(항상 1×1), 병합된 표를 만나도 그리드가 깨지지 않게 방어.
  */
 function TableBlock({ rows }: { rows: DocBlockNode[] }) {
+  // 표는 위아래 선만 — 목록 표(TableView)와 같은 문법. 머리 줄(tableHeader)은 옅은 면 + 흐린 글자.
   return (
     <table className="w-full border-collapse text-sm">
       <tbody>
@@ -52,8 +53,10 @@ function TableBlock({ rows }: { rows: DocBlockNode[] }) {
                   colSpan={colSpan}
                   rowSpan={rowSpan}
                   className={cn(
-                    'border border-border px-2 py-1 text-left align-top',
-                    cell.type === 'tableHeader' && 'bg-surface font-semibold',
+                    'border-b border-border px-3 text-left align-middle',
+                    cell.type === 'tableHeader'
+                      ? 'bg-surface py-2 text-xs font-medium text-fg-subtle'
+                      : 'py-2.5 text-fg',
                   )}
                 >
                   {blockText(cell)}
@@ -76,7 +79,7 @@ function formatPropertyValue(value: Exclude<PropertyValue, null>): string {
     if ('tag' in value) return value.tag // TagValue(색 칩은 PropertyValueCell 이 먼저 분기 — 여긴 폴백)
     // 상대값은 **조건의 값**이지 레코드의 값이 아니다(relative-value 참고). 타입 union 이 넓어서
     // 여기 닿을 뿐이라, 뜻을 지어내지 않고 사람 말 표기를 그대로 쓴다.
-    if ('rel' in value) return relativeDateLabel(value)
+    if ('rel' in value) return relativeValueLabel(value) ?? ''
     return value.label // ButtonValue(정상 경로는 isButtonValue 가 먼저 분기)
   }
   return String(value)
@@ -117,9 +120,14 @@ function PropertyValueCell({
     )
   }
   if (typeof value === 'boolean') {
-    return <span className="font-mono text-fg">{value ? '✓' : '—'}</span>
+    return <span className="text-fg">{value ? '✓' : '—'}</span>
   }
-  return <span className="min-w-0 truncate font-mono text-fg">{formatPropertyValue(value)}</span>
+  const text = formatPropertyValue(value)
+  return (
+    <span className="block min-w-0 truncate text-fg" title={text}>
+      {text}
+    </span>
+  )
 }
 
 /**
@@ -151,18 +159,25 @@ export function RecordDocumentView({
         </Text>
       )}
       {entries.length > 0 && (
-        <dl className="grid grid-cols-[max-content_1fr] items-center gap-x-3 gap-y-1.5 text-xs">
+        // 라벨 칸은 고정 폭(8rem) — 값이 칩·버튼·글자 어느 것이든 같은 세로줄에 선다(DescriptionRow compact 와 같은 위계).
+        <dl className="grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 text-xs">
           {entries.map(([key, value]) => (
             <div key={key} className="contents">
-              <dt className="text-fg-muted">{key}</dt>
-              <dd className="min-w-0">
+              <dt className="font-medium text-fg-subtle">{key}</dt>
+              <dd className="flex min-h-7 min-w-0 items-center">
                 <PropertyValueCell value={value} onAction={onAction} />
               </dd>
             </div>
           ))}
         </dl>
       )}
-      <div className="space-y-2">
+      {/* 본문 — 속성 아래 가는 선으로 나눈다(속성이 없으면 선 없이). */}
+      <div
+        className={cn(
+          'space-y-2',
+          entries.length > 0 && body.length > 0 && 'border-t border-border-subtle pt-3',
+        )}
+      >
         {body.map((block, i) => {
           if (block.type === 'heading') {
             const level = typeof block.attrs?.level === 'number' ? block.attrs.level : 3

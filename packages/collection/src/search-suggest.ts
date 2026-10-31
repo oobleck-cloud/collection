@@ -19,6 +19,7 @@
 
 import { isExplicitDateTerm, parseDateTerm } from './date-term'
 import { normalizeOptions } from './options'
+import { ME_LABEL, ME_VALUE } from './relative-value'
 
 import type { FilterOp, PropertyDef, PropertyType, PropertyValue } from './types'
 
@@ -176,10 +177,37 @@ function rangeSuggestion(
 function suggestSelect(term: string, def: PropertyDef): SearchSuggestion[] {
   const t = term.trim().toLowerCase()
   if (t === '') return []
-  const has = def.type === 'multi_select'
+  const has = def.type === 'multi_select' || def.relation?.cardinality === 'many'
   return normalizeOptions(def.options)
     .filter((o) => (o.label ?? o.value).toLowerCase().includes(t))
     .map((o) => suggestion(def, has ? 'has' : 'eq', o.value, o.label ?? o.value, 'strong'))
+}
+
+/**
+ * person / multi_person — 명단의 **이름·보조표기(이메일)** 와 부분일치. 값은 계정 id 로 나간다.
+ * `나` 를 치면 「나」(보는 사람) 조건을 맨 앞에 낸다 — 저장된 보기에 상대값으로 남는다.
+ */
+function suggestPerson(term: string, def: PropertyDef): SearchSuggestion[] {
+  const t = term.trim().toLowerCase()
+  if (t === '') return []
+  const op: FilterOp = def.type === 'multi_person' ? 'has' : 'eq'
+  const me =
+    t === ME_LABEL
+      ? [
+          {
+            ...suggestion(def, op, ME_VALUE, ME_LABEL, 'strong'),
+            id: `${def.key}:${op}:@me`,
+          },
+        ]
+      : []
+  const people = normalizeOptions(def.options)
+    .filter(
+      (o) =>
+        (o.label ?? o.value).toLowerCase().includes(t) ||
+        (o.hint?.toLowerCase().includes(t) ?? false),
+    )
+    .map((o) => suggestion(def, op, o.value, o.label ?? o.value, 'strong'))
+  return [...me, ...people]
 }
 
 /** 내장 규칙 — 타입만 보고 판정한다. 컬럼이 `suggest` 를 달면 이건 쓰이지 않는다. */
@@ -191,6 +219,16 @@ export function builtinSuggester(term: string, def: PropertyDef, now?: Date): Se
     case 'select':
     case 'multi_select':
       return suggestSelect(t, def)
+
+    case 'person':
+    case 'multi_person':
+      return suggestPerson(t, def)
+
+    // 관계는 호스트가 후보(옵션)를 채웠으면 select 와 같이 라벨로 겨눈다. 없으면 아래 약한 부분일치.
+    case 'relation':
+      return normalizeOptions(def.options).length > 0
+        ? suggestSelect(t, def)
+        : [suggestion(def, 'contains', t, t, 'weak')]
 
     case 'phone': {
       const s = phoneStrength(t)
@@ -246,7 +284,7 @@ export function builtinSuggester(term: string, def: PropertyDef, now?: Date): Se
 
 /** 필터 후보에서 빠지는 타입은 제안에서도 뺀다(ViewToolbar 의 isFilterableType 과 같은 규약). */
 function isSuggestable(type: PropertyType): boolean {
-  return type !== 'button'
+  return type !== 'button' && type !== 'struct'
 }
 
 /** strong 이 weak 보다 먼저. 같은 등급 안에서는 스키마 선언 순서(= 표의 컬럼 순서)를 지킨다. */

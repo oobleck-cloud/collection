@@ -102,6 +102,14 @@ describe('DateCellEditor', () => {
     expect(screen.getByTestId('panel-value').textContent).toBe('none')
   })
 
+  it("format='iso' 면 트리거 글자가 「2026-07-01」(표 칸과 같은 모양)", () => {
+    render(<DateCellEditor value="2026-07-01" onCommit={() => {}} format="iso" />)
+    const shown = screen
+      .getAllByText('2026-07-01')
+      .filter((el) => el.dataset.testid !== 'panel-value')
+    expect(shown).toHaveLength(1)
+  })
+
   it("'YYYY-MM-DD' 값 → 패널 value.start 가 로컬 자정(전날 밀림 없음)", () => {
     render(<DateCellEditor value="2026-07-01" onCommit={() => {}} />)
     expect(screen.getByTestId('panel-value').textContent).toBe('2026-07-01')

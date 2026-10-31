@@ -49,6 +49,9 @@ vi.mock('@oobleck/systheme', () => {
         ))}
       </select>
     ),
+    MultiSelect: ({ value }: Record<string, unknown>) => (
+      <div data-testid="multi-select">{(value as string[]).join('|')}</div>
+    ),
     Input: ({ onValueChange, ...rest }: Record<string, unknown>) => (
       <input
         onChange={(e) => (onValueChange as (v: string) => void)?.(e.target.value)}
@@ -197,6 +200,38 @@ describe('FilterChipRail', () => {
 
   // ─── 칩 클릭 편집 — 칩 본문이 그 조건 하나로 스코프된 편집기를 연다 ───────────
 
+  it('「다음 중 하나」 는 = 뒤에 값 라벨을 늘어놓는다', () => {
+    render(
+      <FilterChipRail
+        schema={SCHEMA}
+        view={view([
+          { key: 'status', op: 'in', value: ['synced', 'closed_lost'] },
+          { key: 'status', op: 'not_in', value: ['closed_lost'] },
+        ])}
+        onViewChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('=')).toBeTruthy()
+    expect(screen.getByText('접수됨, 취소됨')).toBeTruthy()
+    expect(screen.getByText('≠')).toBeTruthy()
+  })
+
+  it('연산자를 「다음 중 하나」 로 바꾸면 고른 값이 첫 값으로 남는다', () => {
+    const onViewChange = vi.fn()
+    render(
+      <FilterChipRail
+        schema={SCHEMA}
+        view={view([{ key: 'status', op: 'eq', value: 'synced' }])}
+        onViewChange={onViewChange}
+      />,
+    )
+    fireEvent.click(screen.getByLabelText('상태 필터 편집'))
+    fireEvent.change(screen.getAllByTestId('select')[0], { target: { value: 'in' } })
+    expect(onViewChange).toHaveBeenCalledWith({
+      filters: { op: 'and', children: [{ key: 'status', op: 'in', value: ['synced'] }] },
+    })
+  })
+
   it('조건 칩 클릭 → 그 조건의 편집기가 열리고, 연산자 변경이 그 조건만 바꾼다', () => {
     const onViewChange = vi.fn()
     render(
@@ -276,5 +311,36 @@ describe('FilterChipRail', () => {
 
     expect(onViewChange).toHaveBeenCalledWith({ filters: { op: 'and', children: [] } })
     expect(screen.queryByTestId('popover-panel')).toBeNull()
+  })
+
+  it('읽기 전용 — 편집·제거 입구 없이, 하위 그룹도 접지 않고 AND/OR 로 편다', () => {
+    render(
+      <FilterChipRail
+        readOnly
+        schema={SCHEMA}
+        view={view([
+          { key: 'status', op: 'eq', value: 'synced' },
+          {
+            op: 'or',
+            children: [
+              {
+                key: 'moveDate',
+                op: 'lt',
+                value: { rel: 'date', unit: 'day', offset: 0, time: '12:00' },
+              },
+              { key: 'moveDate', op: 'lt', value: '2026-10-17T09:30' },
+            ],
+          },
+        ])}
+        onViewChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('접수됨')).toBeTruthy()
+    expect(screen.getByText('오늘 12:00')).toBeTruthy()
+    expect(screen.getByText('2026-10-17 09:30')).toBeTruthy()
+    expect(screen.getByText('AND')).toBeTruthy()
+    expect(screen.getByText('OR')).toBeTruthy()
+    expect(screen.queryByLabelText('상태 필터 제거')).toBeNull()
+    expect(screen.queryByText(/그룹/)).toBeNull()
   })
 })
