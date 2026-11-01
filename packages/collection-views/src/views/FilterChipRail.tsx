@@ -48,6 +48,8 @@ export type FilterChipRailProps = {
    * 「이 조건으로」를 같은 말로 보일 때 쓴다. 조건이 없으면 아무것도 그리지 않는다.
    */
   readOnly?: boolean
+  /** 펴 둘 칩의 최대 개수 — 넘으면 앞의 (maxVisible − 1)개만 펴고 나머지는 「외 N개」 칩으로 접는다. 기본 3. */
+  maxVisible?: number
   className?: string
 }
 
@@ -173,10 +175,16 @@ function rollupChip(
 
 function StaticChip({ chip }: { chip: ChipText }) {
   return (
-    <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/8 px-2.5 text-xs">
-      <span className="text-fg-muted">{chip.label}</span>
-      {chip.op !== null && <span className="text-fg-muted/70">{chip.op}</span>}
-      {chip.value !== null && <span className="font-medium text-primary">{chip.value}</span>}
+    <span className="inline-flex h-8 max-w-full min-w-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/8 px-2.5 text-xs">
+      <span className="shrink-0 whitespace-nowrap text-fg-muted">{chip.label}</span>
+      {chip.op !== null && (
+        <span className="shrink-0 whitespace-nowrap text-fg-muted/70">{chip.op}</span>
+      )}
+      {chip.value !== null && (
+        <span className="min-w-0 truncate font-medium text-primary" title={chip.value}>
+          {chip.value}
+        </span>
+      )}
     </span>
   )
 }
@@ -219,14 +227,15 @@ function ReadOnlyFilterTree({
   )
 }
 
-/** 동시에 열리는 편집기는 하나 — 칩 인덱스 또는 "＋ 필터"(add). */
-type OpenEditor = number | 'add' | null
+/** 동시에 열리는 편집기는 하나 — 칩 인덱스, "＋ 필터"(add), 또는 「외 N개」 목록(more). */
+type OpenEditor = number | 'add' | 'more' | null
 
 export function FilterChipRail({
   schema,
   view,
   onViewChange,
   readOnly = false,
+  maxVisible = 3,
   className,
 }: FilterChipRailProps) {
   const locale = useCollectionLocale()
@@ -274,66 +283,107 @@ export function FilterChipRail({
     )
   }
 
-  return (
-    <div className={cn('flex min-w-0 flex-wrap items-center gap-1.5', className)}>
-      {chips.map((chip) => (
-        <span
-          key={chip.key}
-          className="inline-flex h-8 shrink-0 items-center overflow-hidden rounded-full border border-primary/25 bg-primary/8 text-xs"
-        >
-          {/* 칩 본문 = 그 조건으로 스코프된 편집기의 트리거. */}
-          <Popover
-            open={openEditor === chip.index}
-            onOpenChange={(o) => setOpenEditor(o ? chip.index : null)}
-            side="bottom"
-            align="start"
-            contentClassName="w-96 p-3"
-            className="h-full"
-            trigger={({ onClick, 'aria-expanded': ae }) => (
-              <button
-                type="button"
-                onClick={() => onClick()}
-                aria-expanded={ae}
-                aria-label={c.editChip(chip.label)}
-                className="flex h-full items-center gap-1 pl-2.5 pr-1.5 transition-colors hover:bg-primary/15"
-              >
-                <span className="text-fg-muted">{chip.label}</span>
-                {chip.op !== null && <span className="text-fg-muted/70">{chip.op}</span>}
-                {chip.value !== null && (
-                  <span className="font-medium text-primary">{chip.value}</span>
-                )}
-              </button>
-            )}
-          >
-            {isFilterGroup(chip.child) ? (
-              <FilterGroupEditor
-                schema={schema}
-                group={chip.child}
-                depth={0}
-                onChange={(next) => updateChildAt(chip.index, next)}
-              />
-            ) : (
-              <FilterConditionRow
-                schema={schema}
-                condition={chip.child}
-                onChange={(next) => updateChildAt(chip.index, next)}
-                onRemove={() => {
-                  removeChildAt(chip.index)
-                  setOpenEditor(null)
-                }}
-              />
-            )}
-          </Popover>
+  // 칩이 많으면 앞의 몇 개만 펴고 나머지는 「외 N개」 하나로 접는다 — 좁은 판에서 칩 줄이 여러 줄로 불어나
+  // 목록을 밀어내지 않게. 접힌 칩도 같은 칩(편집·✕)으로 그 목록 안에서 다룬다.
+  const visibleCount = chips.length > maxVisible ? Math.max(1, maxVisible - 1) : chips.length
+  const shown = chips.slice(0, visibleCount)
+  const overflow = chips.slice(visibleCount)
+  const moreOpen =
+    openEditor === 'more' || (typeof openEditor === 'number' && openEditor >= visibleCount)
+
+  const renderChip = (chip: (typeof chips)[number], hidden: boolean) => (
+    <span
+      key={chip.key}
+      // 칩은 레일 폭을 넘지 않는다 — 값이 길면(여러 상태를 고른 조건) 값만 말줄임하고 원문은 title 로.
+      className="inline-flex h-8 max-w-full min-w-0 items-center overflow-hidden rounded-full border border-primary/25 bg-primary/8 text-xs"
+    >
+      {/* 칩 본문 = 그 조건으로 스코프된 편집기의 트리거. */}
+      <Popover
+        open={openEditor === chip.index}
+        // 접힌 칩의 편집기를 닫으면 「외 N개」 목록으로 돌아간다.
+        onOpenChange={(o) => setOpenEditor(o ? chip.index : hidden ? 'more' : null)}
+        side="bottom"
+        align="start"
+        contentClassName="w-96 p-3"
+        className="h-full min-w-0"
+        trigger={({ onClick, 'aria-expanded': ae }) => (
           <button
             type="button"
-            aria-label={c.removeChip(chip.label)}
-            onClick={() => removeChildAt(chip.index)}
-            className="inline-flex h-full items-center border-l border-primary/20 px-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg"
+            onClick={() => onClick()}
+            aria-expanded={ae}
+            aria-label={c.editChip(chip.label)}
+            className="flex h-full max-w-full min-w-0 items-center gap-1 pl-2.5 pr-1.5 transition-colors hover:bg-primary/15"
           >
-            <X className="size-4" />
+            <span className="shrink-0 whitespace-nowrap text-fg-muted">{chip.label}</span>
+            {chip.op !== null && (
+              <span className="shrink-0 whitespace-nowrap text-fg-muted/70">{chip.op}</span>
+            )}
+            {chip.value !== null && (
+              <span className="min-w-0 truncate font-medium text-primary" title={chip.value}>
+                {chip.value}
+              </span>
+            )}
           </button>
-        </span>
-      ))}
+        )}
+      >
+        {isFilterGroup(chip.child) ? (
+          <FilterGroupEditor
+            schema={schema}
+            group={chip.child}
+            depth={0}
+            onChange={(next) => updateChildAt(chip.index, next)}
+          />
+        ) : (
+          <FilterConditionRow
+            schema={schema}
+            condition={chip.child}
+            onChange={(next) => updateChildAt(chip.index, next)}
+            onRemove={() => {
+              removeChildAt(chip.index)
+              setOpenEditor(null)
+            }}
+          />
+        )}
+      </Popover>
+      <button
+        type="button"
+        aria-label={c.removeChip(chip.label)}
+        onClick={() => removeChildAt(chip.index)}
+        className="inline-flex h-full shrink-0 items-center border-l border-primary/20 px-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg"
+      >
+        <X className="size-4" />
+      </button>
+    </span>
+  )
+
+  return (
+    <div className={cn('flex min-w-0 flex-wrap items-center gap-1.5', className)}>
+      {shown.map((chip) => renderChip(chip, false))}
+
+      {overflow.length > 0 && (
+        <Popover
+          open={moreOpen}
+          onOpenChange={(o) => setOpenEditor(o ? 'more' : null)}
+          side="bottom"
+          align="start"
+          contentClassName="w-80 max-w-[calc(100vw-2rem)] p-2"
+          trigger={({ onClick, 'aria-expanded': ae }) => (
+            <button
+              type="button"
+              onClick={() => onClick()}
+              aria-expanded={ae}
+              aria-label={c.moreChipsAria(overflow.length)}
+              className="inline-flex h-8 shrink-0 items-center rounded-full border border-primary/25 bg-primary/8 px-2.5 text-xs font-medium whitespace-nowrap text-primary transition-colors hover:bg-primary/15"
+            >
+              {c.moreChips(overflow.length)}
+            </button>
+          )}
+        >
+          <div className="flex flex-col items-start gap-1.5">
+            {overflow.map((chip) => renderChip(chip, true))}
+          </div>
+        </Popover>
+      )}
 
       {/* ＋ 필터 — ⛁ 과 같은 편집기를 여는 두 번째 입구(편집기 자체는 하나). */}
       <Popover

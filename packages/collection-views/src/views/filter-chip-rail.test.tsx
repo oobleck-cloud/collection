@@ -343,4 +343,43 @@ describe('FilterChipRail', () => {
     expect(screen.queryByLabelText('상태 필터 제거')).toBeNull()
     expect(screen.queryByText(/그룹/)).toBeNull()
   })
+
+  it('칩이 3개를 넘으면 앞의 2개만 펴고 나머지는 「외 N개」로 접는다 — 접힌 칩도 그 안에서 지운다', () => {
+    const onViewChange = vi.fn()
+    const four = [
+      { key: 'status', op: 'eq' as const, value: 'synced' },
+      { key: 'departure', op: 'contains' as const, value: '강남' },
+      { key: 'moveDate', op: 'lte' as const, value: '2026-09-30' },
+      { key: 'departure', op: 'contains' as const, value: '서초' },
+    ]
+    render(<FilterChipRail schema={SCHEMA} view={view(four)} onViewChange={onViewChange} />)
+
+    expect(screen.getByText('접수됨')).toBeTruthy()
+    expect(screen.getByText('강남')).toBeTruthy()
+    expect(screen.queryByText('2026-09-30')).toBeNull()
+    expect(screen.queryByText('서초')).toBeNull()
+
+    fireEvent.click(screen.getByText('외 2개'))
+    expect(screen.getByText('2026-09-30')).toBeTruthy()
+    fireEvent.click(screen.getAllByLabelText('출발지 필터 제거')[1]!)
+    expect(onViewChange).toHaveBeenCalledWith({
+      filters: { op: 'and', children: four.slice(0, 3) },
+    })
+  })
+
+  it('3개까지는 접지 않는다', () => {
+    render(
+      <FilterChipRail
+        schema={SCHEMA}
+        view={view([
+          { key: 'status', op: 'eq', value: 'synced' },
+          { key: 'departure', op: 'contains', value: '강남' },
+          { key: 'moveDate', op: 'lte', value: '2026-09-30' },
+        ])}
+        onViewChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('2026-09-30')).toBeTruthy()
+    expect(screen.queryByText(/외 \d+개/)).toBeNull()
+  })
 })
