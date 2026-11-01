@@ -23,6 +23,16 @@ const M = {
     en: 'Group · {count}',
     'zh-Hans': '组 · {count}',
   } satisfies Localized,
+  moreChips: {
+    default: '외 {count}개',
+    en: '+{count} more',
+    'zh-Hans': '另 {count} 个',
+  } satisfies Localized,
+  moreChipsAria: {
+    default: '접힌 필터 {count}개 보기',
+    en: 'Show {count} more filters',
+    'zh-Hans': '查看另外 {count} 个筛选',
+  } satisfies Localized,
   removeChip: {
     default: '{label} 필터 제거',
     en: 'Remove {label} filter',
@@ -42,6 +52,10 @@ export function filterChipRailCopy(locale: CollectionLocale) {
     clearAll: pickLocalized(M.clearAll, locale),
     groupChip: (count: number) =>
       pickLocalized(M.groupChip, locale).replace('{count}', String(count)),
+    moreChips: (count: number) =>
+      pickLocalized(M.moreChips, locale).replace('{count}', String(count)),
+    moreChipsAria: (count: number) =>
+      pickLocalized(M.moreChipsAria, locale).replace('{count}', String(count)),
     removeChip: (label: string) => pickLocalized(M.removeChip, locale).replace('{label}', label),
     editChip: (label: string) => pickLocalized(M.editChip, locale).replace('{label}', label),
   }
