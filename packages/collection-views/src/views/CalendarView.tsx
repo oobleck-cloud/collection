@@ -1,7 +1,7 @@
 'use client'
 
 import { type FC, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, cn } from '@oobleck/systheme'
+import { CalendarDays, ChevronLeft, ChevronRight, cn } from '../kit'
 import type { PropertyValue } from '@oobleck/collection'
 import { resolveTitleKey, viewRows } from '@oobleck/collection'
 import { dateValueEnd } from '@oobleck/collection'

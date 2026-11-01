@@ -1,6 +1,6 @@
 'use client'
 
-import { AnchorContextSurface, cn } from '@oobleck/systheme'
+import { AnchorContextSurface, cn } from '../kit'
 import { useState } from 'react'
 
 import {

@@ -12,7 +12,7 @@
 // 키를 가정하지 않는다. properties.title 이 있으면(문자열) 본문 최상단에 큰 제목으로 뽑고 속성 목록에선
 // 뺀다(중복 표시 방지). 바깥 여백은 호출자 몫(패널은 p-4 래퍼, 카드면 Surface 등 — 기질은 투명).
 
-import { Button, Tag, Text, cn } from '@oobleck/systheme'
+import { Button, Tag, Text, cn } from '../kit'
 import type { BlockDocument, PropertyValue } from '@oobleck/collection'
 import { optionColor } from '@oobleck/collection'
 import { relativeValueLabel } from '@oobleck/collection'

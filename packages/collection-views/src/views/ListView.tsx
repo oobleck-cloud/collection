@@ -1,7 +1,7 @@
 'use client'
 
 import { type FC, useMemo } from 'react'
-import { Button, Plus } from '@oobleck/systheme'
+import { Button, Plus } from '../kit'
 import type { ButtonValue, PropertyDef, PropertyValue, ViewConfig } from '@oobleck/collection'
 import {
   GROUP_EMPTY,

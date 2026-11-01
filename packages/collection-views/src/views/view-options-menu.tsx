@@ -15,7 +15,7 @@
 //   <ViewOptionsMenu slots={[propertiesSlot]} ... />
 
 import { useState, type ElementType, type ReactNode } from 'react'
-import { SlidersHorizontal, Popover, Tooltip, cn } from '@oobleck/systheme'
+import { SlidersHorizontal, Popover, Tooltip, cn } from '../kit'
 import { useCollectionLocale } from '../i18n'
 import { viewOptionsMenuCopy } from './view-options-menu.messages'
 

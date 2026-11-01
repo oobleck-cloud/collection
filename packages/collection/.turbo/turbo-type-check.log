@@ -1,0 +1,4 @@
+
+> @oobleck/collection@0.0.0 type-check /Users/miso/Documents/project/miso/mvos/client-kit/vendor/collection/packages/collection
+> tsc --noEmit
+

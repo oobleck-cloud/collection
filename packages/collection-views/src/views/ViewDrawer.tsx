@@ -1,18 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  Button,
-  Check,
-  EyeOff,
-  Input,
-  Lock,
-  Plus,
-  Popover,
-  Search,
-  Users,
-  cn,
-} from '@oobleck/systheme'
+import { Button, Check, EyeOff, Input, Lock, Plus, Popover, Search, Users, cn } from '../kit'
 import type { SavedView } from '@oobleck/collection'
 import { isViewPinned, sectionSavedViews } from '@oobleck/collection'
 import { useCollectionLocale } from '../i18n'

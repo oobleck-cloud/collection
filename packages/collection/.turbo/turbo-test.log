@@ -1,0 +1,42 @@
+
+> @oobleck/collection@0.0.0 test /Users/miso/Documents/project/miso/mvos/client-kit/vendor/collection/packages/collection
+> vitest run
+
+
+ RUN  v3.2.4 /Users/miso/Documents/project/miso/mvos/client-kit/vendor/collection/packages/collection
+
+ ✓ src/relation-table.test.ts (12 tests) 14ms
+ ✓ src/saved-views.test.ts (32 tests) 59ms
+ ✓ src/trust.test.ts (30 tests) 316ms
+ ✓ src/geo.test.ts (17 tests) 513ms
+ ✓ src/date-term.test.ts (24 tests) 414ms
+   ✓ 상대 — 하루 > 오늘·내일·어제·모레  337ms
+ ✓ src/collection-schema.test.ts (16 tests) 533ms
+ ✓ src/conditional-format.test.ts (28 tests) 156ms
+ ✓ src/headless.test.ts (18 tests) 157ms
+ ✓ src/date-value.test.ts (16 tests) 81ms
+ ✓ src/options.test.ts (37 tests) 407ms
+ ✓ src/search-suggest.test.ts (37 tests) 241ms
+ ✓ src/record-schema.test.ts (29 tests) 443ms
+ ✓ src/relative-value.test.ts (34 tests) 142ms
+ ✓ src/auto-size.test.ts (23 tests) 518ms
+ ✓ src/struct.test.ts (14 tests) 596ms
+   ✓ resolveStruct > 앞에서부터 첫 값 — 희망 금액이 없으면 타업체 금액을 쓰고, 원 단위 칸을 만 원으로 맞춘다  381ms
+ ✓ src/query.test.ts (60 tests) 652ms
+ ✓ src/trust-column.test.ts (19 tests) 504ms
+ ✓ src/view.test.ts (72 tests) 895ms
+ ✓ src/view-drift.test.ts (34 tests) 568ms
+ ✓ src/doc-blocks.test.ts (6 tests) 77ms
+ ✓ src/map-markers.test.ts (8 tests) 45ms
+ ✓ src/schema.test.ts (8 tests) 32ms
+ ✓ src/aggregations.test.ts (13 tests) 141ms
+ ✓ src/view-patch.test.ts (6 tests) 39ms
+ ✓ src/blank-pack.test.ts (7 tests) 76ms
+ ✓ src/person.test.ts (7 tests) 125ms
+ ✓ src/column-widths.test.ts (5 tests) 13ms
+
+ Test Files  27 passed (27)
+      Tests  612 passed (612)
+   Start at  10:52:20
+   Duration  12.15s (transform 33.99s, setup 0ms, collect 91.54s, tests 7.76s, environment 43ms, prepare 20.30s)
+

@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
-import { beginListReorder, reorderArray } from '@oobleck/systheme'
+import { beginListReorder, reorderArray } from '../kit'
 import { useCollectionLocale } from '../i18n'
 import { inlineTableCopy } from './InlineTable.messages'
 

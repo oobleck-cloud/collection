@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Lock, Plus, cn } from '@oobleck/systheme'
+import { Lock, Plus, cn } from '../kit'
 import type {
   BlockPack,
   PropertyDef,

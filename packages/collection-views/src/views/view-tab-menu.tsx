@@ -1,6 +1,6 @@
 'use client'
 
-import { Copy, EyeOff, Pencil, Popover, Trash2, Users, cn } from '@oobleck/systheme'
+import { Copy, EyeOff, Pencil, Popover, Trash2, Users, cn } from '../kit'
 
 import { useCollectionLocale } from '../i18n'
 import {

@@ -1,14 +1,6 @@
 'use client'
 
-import {
-  Lock,
-  MoreHorizontal,
-  Tooltip,
-  Users,
-  beginListReorder,
-  cn,
-  reorderArray,
-} from '@oobleck/systheme'
+import { Lock, MoreHorizontal, Tooltip, Users, beginListReorder, cn, reorderArray } from '../kit'
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 
 import { useCollectionLocale } from '../i18n'

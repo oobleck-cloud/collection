@@ -1,6 +1,6 @@
 'use client'
 
-import { MapProvider, MapboxMap } from '@oobleck/systheme'
+import { MapProvider, MapboxMap } from '../kit'
 import { resolveMapboxToken } from './mapbox-token'
 
 // geo 셀 편집기의 위치 미리보기(#36) — 입력된 좌표에 핀 하나를 찍은 작은 지도.

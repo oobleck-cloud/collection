@@ -1,7 +1,7 @@
 'use client'
 
 import type { FC } from 'react'
-import type { LucideIcon } from '@oobleck/systheme'
+import type { LucideIcon } from '../kit'
 import type { QueryMode } from '@oobleck/collection'
 import type { RowSelection, TitleVariant } from './TableView'
 import type {

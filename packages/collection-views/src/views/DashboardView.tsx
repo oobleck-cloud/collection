@@ -1,7 +1,7 @@
 'use client'
 
 import { type FC, type ReactNode, useMemo } from 'react'
-import { cn } from '@oobleck/systheme'
+import { cn } from '../kit'
 import type { PropertyValue } from '@oobleck/collection'
 import { viewRows, type Row } from '@oobleck/collection'
 import { buildDashboardMetrics } from './dashboard-metrics'

@@ -8,7 +8,7 @@
 // 사용: 노션식 구조에 맞춰 LayoutPanel(view-layout-panel.tsx) 안에서 직접 렌더한다
 // ("그룹 기준" 설정은 레이아웃 패널 소속). 별도 ⊞ 허브 슬롯으로 노출하지 않는다.
 
-import { Select, Switch, cn } from '@oobleck/systheme'
+import { Select, Switch, cn } from '../kit'
 import { isMultiValueType, isOptionBackedType } from '@oobleck/collection'
 import type { PropertyDef, ViewConfig } from '@oobleck/collection'
 import { useCollectionLocale } from '../i18n'

@@ -25,7 +25,7 @@ import {
   cn,
   formatPhoneNumber,
   type LucideIcon,
-} from '@oobleck/systheme'
+} from '../kit'
 import { isEmptyCellValue } from '@oobleck/collection'
 import { normalizeOptions, resolveOptionColor } from '@oobleck/collection'
 import {
