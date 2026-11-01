@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AnchorContextSurface, MoreHorizontal, Trash2, cn } from '@oobleck/systheme'
+import { AnchorContextSurface, MoreHorizontal, Trash2, cn } from '../kit'
 import { useCollectionLocale } from '../i18n'
 import { rowActionMenuCopy } from './row-action-menu.messages'
 

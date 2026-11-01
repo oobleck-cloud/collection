@@ -4,6 +4,7 @@
   "type": "module",
   "workspaces": [
     "packages/collection",
-    "packages/collection-views"
+    "packages/collection-views",
+    "packages/collection-views-workstyle"
   ]
 }

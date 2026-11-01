@@ -16,7 +16,7 @@ import {
   X,
   cn,
   type MenuItem,
-} from '@oobleck/systheme'
+} from '../kit'
 import type {
   FilterCondition,
   FilterGroup,

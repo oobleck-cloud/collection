@@ -1,7 +1,7 @@
 'use client'
 
 import { type FC, useMemo } from 'react'
-import { Plus, cn } from '@oobleck/systheme'
+import { Plus, cn } from '../kit'
 import type { PropertyDef, PropertyValue, ViewConfig } from '@oobleck/collection'
 import { GROUP_EMPTY, resolveTitleKey, viewGroups, type Row } from '@oobleck/collection'
 import { normalizeOptions, isMultiValueType, isOptionBackedType } from '@oobleck/collection'

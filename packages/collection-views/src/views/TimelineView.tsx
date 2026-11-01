@@ -1,7 +1,7 @@
 'use client'
 
 import { type FC, useMemo } from 'react'
-import { CalendarDays, cn } from '@oobleck/systheme'
+import { CalendarDays, cn } from '../kit'
 import type { PropertyValue } from '@oobleck/collection'
 import { resolveTitleKey, viewRows } from '@oobleck/collection'
 import { dateValueStart } from '@oobleck/collection'

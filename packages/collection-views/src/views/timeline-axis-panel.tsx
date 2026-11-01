@@ -12,7 +12,7 @@
 //
 // ProductsTable 배선은 통합 단계(레인 T)에서 별도로.
 
-import { CalendarDays, Select } from '@oobleck/systheme'
+import { CalendarDays, Select } from '../kit'
 import type { PropertyDef, TimelineConfig, ViewConfig } from '@oobleck/collection'
 import type { ViewOptionsSlot } from './view-options-menu'
 import { DEFAULT_COLLECTION_LOCALE, useCollectionLocale, type CollectionLocale } from '../i18n'

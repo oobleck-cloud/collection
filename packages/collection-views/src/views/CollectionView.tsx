@@ -11,7 +11,7 @@ import {
   MessageSquare,
   Monitor,
   SlidersHorizontal,
-} from '@oobleck/systheme'
+} from '../kit'
 import type { ViewType } from '@oobleck/collection'
 import { normalizeViewType } from '@oobleck/collection'
 import { BoardView } from './BoardView'

@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { PanelRight, Monitor, X, cn } from '@oobleck/systheme'
+import { PanelRight, Monitor, X, cn } from '../kit'
 import type { BlockDocument } from '@oobleck/collection'
 import { useCollectionLocale } from '../i18n'
 import { RecordDocumentView } from './RecordDocumentView'

@@ -1,7 +1,7 @@
 'use client'
 
 import { type FC, useMemo } from 'react'
-import { MapboxMap, MapProvider, type MapMarker } from '@oobleck/systheme'
+import { MapboxMap, MapProvider, type MapMarker } from '../kit'
 import type { PropertyValue } from '@oobleck/collection'
 import { resolveTitleKey, viewRows, type Row } from '@oobleck/collection'
 import { formatTitleText } from '@oobleck/collection'

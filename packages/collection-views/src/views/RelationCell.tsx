@@ -1,6 +1,6 @@
 'use client'
 
-import { AnchorContextSurface, Input, PanelRight, Tag, cn } from '@oobleck/systheme'
+import { AnchorContextSurface, Input, PanelRight, Tag, cn } from '../kit'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { useCollectionLocale } from '../i18n'

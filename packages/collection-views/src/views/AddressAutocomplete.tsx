@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import { Input, Search, cn } from '@oobleck/systheme'
+import { Input, Search, cn } from '../kit'
 import type { GeoSearchResult } from '@oobleck/collection'
 import { useCollectionLocale } from '../i18n'
 import { addressAutocompleteCopy } from './AddressAutocomplete.messages'

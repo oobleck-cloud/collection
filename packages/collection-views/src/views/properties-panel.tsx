@@ -31,7 +31,7 @@ import {
   cn,
   beginListReorder,
   type LucideIcon,
-} from '@oobleck/systheme'
+} from '../kit'
 import type { ViewOptionsSlot } from './view-options-menu'
 import type { PropertyDef, PropertyType, ViewConfig } from '@oobleck/collection'
 import { DEFAULT_COLLECTION_LOCALE, useCollectionLocale, type CollectionLocale } from '../i18n'

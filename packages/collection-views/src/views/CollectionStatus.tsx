@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Button, EmptyState, Spinner, TriangleAlert } from '@oobleck/systheme'
+import { Button, EmptyState, Spinner, TriangleAlert } from '../kit'
 import { useCollectionLocale } from '../i18n'
 import { collectionViewCopy } from './CollectionView.messages'
 

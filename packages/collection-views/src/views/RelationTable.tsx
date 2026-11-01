@@ -20,7 +20,7 @@
 //    올리면 옅은 바탕. 「+ N개 더」는 흐린 글자 한 줄 — 누르면 그 자리에서 편다. 수 아닌 열도 오른쪽 맞춤 · 최소 폭.
 // 접어 두기(collapsed): 처음엔 「견적 3곳 보기」 한 줄만, 누르면 그 자리에서 편다(카드는 열리지 않는다).
 
-import { Button, ChevronRight, cn } from '@oobleck/systheme'
+import { Button, ChevronRight, cn } from '../kit'
 import { useState } from 'react'
 
 import { useCollectionLocale } from '../i18n'

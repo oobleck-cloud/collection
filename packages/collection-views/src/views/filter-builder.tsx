@@ -10,9 +10,9 @@ import {
   Tag,
   X,
   cn,
-} from '@oobleck/systheme'
+} from '../kit'
 import { useEffect, useId, useState } from 'react'
-import type { SelectOption } from '@oobleck/systheme'
+import type { SelectOption } from '../kit'
 
 import type {
   FilterCondition,

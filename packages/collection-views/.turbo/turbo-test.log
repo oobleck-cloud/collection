@@ -1,0 +1,225 @@
+
+> @oobleck/collection-views@0.0.0 test /Users/miso/Documents/project/miso/mvos/client-kit/vendor/collection/packages/collection-views
+> vitest run
+
+
+ RUN  v3.2.4 /Users/miso/Documents/project/miso/mvos/client-kit/vendor/collection/packages/collection-views
+
+ ✓ src/useSearchSuggest.test.tsx (7 tests) 140ms
+ ✓ src/views/MapView.test.tsx (5 tests) 109ms
+ ✓ src/views/record-card-labels.test.tsx (8 tests) 121ms
+ ✓ src/views/filter-builder.rollup.test.tsx (6 tests) 351ms
+stderr | src/views/relation-cell.test.tsx > RelationCell — 편집 장치는 손댈 때만 > 패널을 열면(편집 중) 숨김 규칙이 빠진다
+Unknown event handler property `onValueChange`. It will be ignored.
+You provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`.
+
+stderr | src/views/row-selection.test.tsx > TableView 행 선택(체크박스 열) > selection 이 없으면 체크박스 열이 서지 않는다 — 회귀 0
+In HTML, <colgroup> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}}>
+    <div>
+>     <div>
+>       <colgroup>
+        ...
+
+<div> cannot contain a nested <colgroup>.
+See this log for the ancestor stack trace.
+In HTML, <tfoot> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}}>
+    <div>
+>     <div>
+        <colgroup>
+        <div>
+        <TableBody>
+>       <tfoot>
+
+<div> cannot contain a nested <tfoot>.
+See this log for the ancestor stack trace.
+
+stderr | src/views/table-extensions.test.tsx > queryMode='server' — 뷰가 서버 결과를 다시 만지지 않는다 > 서버 모드에선 view.filters 를 다시 적용하지 않는다(행이 사라지지 않음)
+In HTML, <colgroup> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}} queryMode="server">
+    <div>
+>     <div>
+>       <colgroup>
+        ...
+
+<div> cannot contain a nested <colgroup>.
+See this log for the ancestor stack trace.
+In HTML, <tfoot> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}} queryMode="server">
+    <div>
+>     <div>
+        <colgroup>
+        <div>
+        <TableBody>
+>       <tfoot>
+
+<div> cannot contain a nested <tfoot>.
+See this log for the ancestor stack trace.
+
+ ✓ src/views/filter-chip-rail.test.tsx (13 tests) 373ms
+stderr | src/views/column-lock.test.tsx > readOnlyReason — 손으로 고칠 수 없는 까닭 > 머리에 자물쇠, 칸 위에 까닭 — 편집 콜백이 있어도 읽기 전용
+In HTML, <colgroup> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}} onEdit={function spy}>
+    <div>
+>     <div>
+>       <colgroup>
+        ...
+
+<div> cannot contain a nested <colgroup>.
+See this log for the ancestor stack trace.
+Unknown event handler property `onValueChange`. It will be ignored.
+You provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`.
+In HTML, <tfoot> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}} onEdit={function spy}>
+    <div>
+>     <div>
+        <colgroup>
+        <div>
+        <TableBody>
+>       <tfoot>
+
+<div> cannot contain a nested <tfoot>.
+See this log for the ancestor stack trace.
+
+stderr | src/views/relation-cell.test.tsx > RelationCell — 편집 장치는 손댈 때만 > ✕ 로 칩 하나를 지운다 — 동작은 그대로
+You provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`.
+
+stderr | src/views/readonly-color-cell.test.tsx > ReadonlyCell — select 색 칩 > 옵션 명시색을 Tag color 로 렌더 + 옵션 label 표시
+In HTML, <colgroup> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}}>
+    <div>
+>     <div>
+>       <colgroup>
+        ...
+
+<div> cannot contain a nested <colgroup>.
+See this log for the ancestor stack trace.
+In HTML, <tfoot> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}}>
+    <div>
+>     <div>
+        <colgroup>
+        <div>
+        <TableBody>
+>       <tfoot>
+
+<div> cannot contain a nested <tfoot>.
+See this log for the ancestor stack trace.
+
+ ✓ src/views/CalendarView.test.tsx (5 tests) 468ms
+ ✓ src/views/readonly-color-cell.test.tsx (4 tests) 320ms
+ ✓ src/views/date-filter-value.test.tsx (18 tests) 581ms
+ ✓ src/views/person-cell.test.tsx (10 tests) 510ms
+ ✓ src/views/column-lock.test.tsx (3 tests) 413ms
+ ✓ src/views/views.test.tsx (13 tests) 364ms
+stderr | src/views/relation-cell.test.tsx > RelationCell — 계층 칩과 덮임 > 「고양 전체」를 지우면 그 아래 숨어 있던 구도 함께 지운다
+You provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`.
+
+ ✓ src/views/relation-cell.test.tsx (15 tests) 773ms
+ ✓ src/views/geo-views.test.tsx (13 tests) 480ms
+   ✓ GeoCellEditor > 기존 주소값 → 확정 카드로 열리고(검색창 X), 상세주소·"변경" 노출  344ms
+stderr | src/views/button-cell.test.tsx > TableView 버튼 프로퍼티 > 버튼 셀 렌더 + 클릭 → onAction(rowId, action)
+In HTML, <colgroup> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}} onAction={function spy}>
+    <div>
+>     <div>
+>       <colgroup>
+        ...
+
+<div> cannot contain a nested <colgroup>.
+See this log for the ancestor stack trace.
+In HTML, <tfoot> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}} onAction={function spy}>
+    <div>
+>     <div>
+        <colgroup>
+        <div>
+        <TableBody>
+>       <tfoot>
+
+<div> cannot contain a nested <tfoot>.
+See this log for the ancestor stack trace.
+
+ ✓ src/views/button-cell.test.tsx (8 tests) 621ms
+   ✓ TableView 버튼 프로퍼티 > 버튼 셀 렌더 + 클릭 → onAction(rowId, action)  450ms
+ ✓ src/views/viewtoolbar.test.tsx (10 tests) 663ms
+ ✓ src/views/table-extensions.test.tsx (21 tests) 728ms
+ ✓ src/views/row-selection.test.tsx (5 tests) 833ms
+   ✓ TableView 행 선택(체크박스 열) > 행 체크박스로 하나씩 고르고 푼다  395ms
+ ✓ src/views/viewtabs.test.tsx (22 tests) 1068ms
+ ✓ src/views/relation-table.test.tsx (32 tests) 1591ms
+ ✓ src/views/ChartView.test.tsx (5 tests) 429ms
+ ✓ src/views/date-cell.test.tsx (7 tests) 291ms
+ ✓ src/views/calendar-grid.test.ts (12 tests) 40ms
+ ✓ src/views/timeline-ticks.test.ts (5 tests) 10ms
+ ✓ src/views/calendar-layout.test.ts (9 tests) 24ms
+ ✓ src/views/feed-order.test.ts (9 tests) 16ms
+ ✓ src/views/dashboard-metrics.test.ts (5 tests) 27ms
+ ✓ src/views/FeedView.test.tsx (3 tests) 182ms
+ ✓ src/views/properties-panel-groups.test.ts (5 tests) 14ms
+stderr | src/views/phone-cell.test.tsx > ReadonlyCell — phone > digits 저장값을 하이픈 서식으로 보이고, tel: 은 저장값 그대로
+In HTML, <colgroup> cannot be a child of <div>.
+ ✓ src/views/DashboardView.test.tsx (5 tests) 294ms
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}}>
+    <div>
+>     <div>
+>       <colgroup>
+        ...
+
+<div> cannot contain a nested <colgroup>.
+See this log for the ancestor stack trace.
+In HTML, <tfoot> cannot be a child of <div>.
+This will cause a hydration error.
+
+  <TableView records={[...]} pack={{...}} view={{type:"table", ...}}>
+    <div>
+>     <div>
+        <colgroup>
+        <div>
+        <TableBody>
+>       <tfoot>
+
+<div> cannot contain a nested <tfoot>.
+See this log for the ancestor stack trace.
+
+ ✓ src/views/phone-cell.test.tsx (4 tests) 190ms
+ ✓ src/views/chart-bars.test.ts (8 tests) 28ms
+ ✓ src/views/record-document-view.test.tsx (6 tests) 250ms
+ ✓ src/views/mapbox-token.test.ts (5 tests) 24ms
+ ✓ src/views/filter-builder.relation.test.tsx (4 tests) 66ms
+ ✓ src/views/map-layout.test.tsx (3 tests) 461ms
+ ✓ src/views/ProjectedPeekPanel.test.tsx (6 tests) 609ms
+ ✓ src/views/filter-builder.group.test.tsx (3 tests) 67ms
+stderr | src/kit/kit.test.tsx
+motion() is deprecated. Use motion.create() instead.
+
+ ✓ src/kit/kit.test.tsx (3 tests) 206ms
+
+ Test Files  38 passed (38)
+      Tests  325 passed (325)
+   Start at  10:52:20
+   Duration  40.95s (transform 27.65s, setup 48.35s, collect 71.84s, tests 13.74s, environment 155.67s, prepare 16.24s)
+

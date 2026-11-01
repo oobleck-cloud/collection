@@ -12,7 +12,7 @@
 // 사용: buildLayoutSlot(view, schema, onViewChange) → ViewOptionsSlot (ViewToolbar 가 허브 맨 앞에 둠).
 
 import { type ElementType } from 'react'
-import { Select, Switch, cn } from '@oobleck/systheme'
+import { Select, Switch, cn } from '../kit'
 import type { PropertyDef, RelationProvider, ViewConfig, ViewType } from '@oobleck/collection'
 import {
   RELATION_TABLE_DEFAULT_ROWS,

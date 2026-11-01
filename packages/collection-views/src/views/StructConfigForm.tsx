@@ -1,6 +1,6 @@
 'use client'
 
-import { Input, X, cn } from '@oobleck/systheme'
+import { Input, X, cn } from '../kit'
 
 import {
   STRUCT_MAX_KEYS_PER_SLOT,

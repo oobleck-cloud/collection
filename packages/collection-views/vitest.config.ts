@@ -15,6 +15,14 @@ export default defineConfig({
       ],
     },
   },
+  // workstyle 은 따로 받은 react 를 들고 있다(제 시험용). 한 벌만 쓰게 묶는다
+  // systheme 안의 '@/…' 는 systheme/src(tsconfig paths 와 같다) — 시험이 systheme 을 흉내 내지 않고 실제로 그릴 때 쓴다
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+    alias: [
+      { find: /^@\//, replacement: `${realpathSync('node_modules/@oobleck/systheme')}/src/` },
+    ],
+  },
   test: {
     environment: 'jsdom',
     globals: true,
@@ -22,5 +30,7 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['node_modules', 'dist'],
     css: false,
+    // systheme 이 쓰는 lucide-react·framer-motion 이 systheme 쪽 react 를 따로 읽지 않게 vite 로 묶는다(위 dedupe 가 걸리게)
+    server: { deps: { inline: [/lucide-react/, /framer-motion/, /motion/] } },
   },
 })

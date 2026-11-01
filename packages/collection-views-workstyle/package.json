@@ -1,0 +1,41 @@
+{
+  "name": "@oobleck/collection-views-workstyle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "컬렉션 뷰의 Workstyle 킷: @oobleck/collection-views 의 부품 자리를 @oobleck/workstyle/react 로 채운다.",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "@oobleck/collection": "file:../collection",
+    "@oobleck/collection-views": "file:../collection-views",
+    "@oobleck/systheme": "file:../../../systheme",
+    "@oobleck/workstyle": "file:../../../workstyle"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@storybook/react": "^8.0.0",
+    "@storybook/test": "^8.0.0",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@types/node": "^22",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^4",
+    "jsdom": "^25",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^6",
+    "vitest": "^3"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  }
+}

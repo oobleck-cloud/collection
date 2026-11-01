@@ -46,7 +46,7 @@ import {
   formatPhoneNumber,
   reorderArray,
   type LucideIcon,
-} from '@oobleck/systheme'
+} from '../kit'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { AGGREGATION_LABEL, computeAggregation } from '@oobleck/collection'

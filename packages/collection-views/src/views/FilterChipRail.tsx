@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useState } from 'react'
-import { Plus, Popover, X, cn } from '@oobleck/systheme'
+import { Plus, Popover, X, cn } from '../kit'
 import type {
   FilterCondition,
   FilterGroup,

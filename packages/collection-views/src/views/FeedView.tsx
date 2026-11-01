@@ -1,7 +1,7 @@
 'use client'
 
 import { type FC, useMemo } from 'react'
-import { Plus } from '@oobleck/systheme'
+import { Plus } from '../kit'
 import type { PropertyDef, PropertyValue, ViewConfig } from '@oobleck/collection'
 import { resolveTitleKey, resolveVisibleColumns, viewRows, type Row } from '@oobleck/collection'
 import { RecordCard } from './record-card'

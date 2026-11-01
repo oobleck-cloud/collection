@@ -3,12 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Systheme 부품에 연결된 컬렉션 뷰. 헤드리스 코어는 @oobleck/collection.",
+  "description": "컬렉션 뷰. 화면 부품은 부품 자리(src/kit)로 받고 기본은 Systheme. 다른 킷(@oobleck/collection-views-workstyle)을 KitProvider 로 걸 수 있다. 헤드리스 코어는 @oobleck/collection.",
   "exports": {
     ".": "./src/i18n/index.ts",
     "./useSearchSuggest": "./src/useSearchSuggest.ts",
     "./views/filter-rollup": "./src/views/filter-rollup.ts",
-    "./views/*": "./src/views/*.tsx"
+    "./views/*": "./src/views/*.tsx",
+    "./kit": "./src/kit/index.tsx",
+    "./storybook/fixtures": "./src/storybook/fixtures.ts"
   },
   "types": "./src/i18n/index.ts",
   "dependencies": {

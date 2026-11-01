@@ -11,7 +11,7 @@ import {
   Select,
   cn,
   type DateEditValue,
-} from '@oobleck/systheme'
+} from '../kit'
 import type { CoordinateSystem, DateDisplayFormat, GeoValue } from '@oobleck/collection'
 import type { GeoSearchResult } from '@oobleck/collection'
 import { formatGeoLabel, isGeoValue } from '@oobleck/collection'
