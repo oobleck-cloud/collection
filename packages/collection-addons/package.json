@@ -1,0 +1,31 @@
+{
+  "name": "@oobleck/collection-addons",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "컬렉션 덧붙이: 폼 문항 → 기록 칸 · 칸 → 속성 정의 변환, 답 요약 · 구역별 답 줄, 답 표(React).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react.tsx"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.15",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

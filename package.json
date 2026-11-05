@@ -5,6 +5,7 @@
   "workspaces": [
     "packages/collection",
     "packages/collection-views",
+    "packages/collection-addons",
     "packages/collection-views-workstyle"
   ]
 }
