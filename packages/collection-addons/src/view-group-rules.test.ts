@@ -7,7 +7,7 @@ import {
   viewGroupOf,
   withViewGroup,
   type GroupedSavedView,
-} from './view-groups'
+} from './view-group-rules'
 
 const OPTS = { defaultViewId: 'default' }
 

@@ -24,4 +24,4 @@ export {
   viewGroupOf,
   withViewGroup,
   type GroupedSavedView,
-} from './view-groups'
+} from './view-group-rules'
