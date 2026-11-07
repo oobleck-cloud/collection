@@ -67,6 +67,11 @@ const M = {
     en: 'Shared view',
     'zh-Hans': '共享视图',
   } satisfies Localized,
+  bundleViewsAria: {
+    default: '묶음의 뷰',
+    en: 'Views in bundle',
+    'zh-Hans': '分组中的视图',
+  } satisfies Localized,
 }
 
 export function viewTabsCopy(locale: CollectionLocale) {
@@ -83,5 +88,6 @@ export function viewTabsCopy(locale: CollectionLocale) {
     viewMenuAria: pickLocalized(M.viewMenuAria, locale),
     defaultViewLocked: pickLocalized(M.defaultViewLocked, locale),
     sharedView: pickLocalized(M.sharedView, locale),
+    bundleViewsAria: pickLocalized(M.bundleViewsAria, locale),
   }
 }

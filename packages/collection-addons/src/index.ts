@@ -17,3 +17,11 @@ export {
   type AnswerRow,
   type FieldAnswers,
 } from './answers'
+export {
+  arrangeTabsByGroup,
+  normalizeGroupName,
+  viewGroupNames,
+  viewGroupOf,
+  withViewGroup,
+  type GroupedSavedView,
+} from './view-groups'
