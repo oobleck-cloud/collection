@@ -114,6 +114,50 @@ export function resolveTabViews(
   return tabs
 }
 
+// ── 탭 줄 배치 ──────────────────────────────────────────────────────────────
+//
+// 탭 줄 1단은 보통 꺼내 둔 뷰를 차례로 세운다. 덧붙이(예: 업무 그룹 — `@oobleck/collection-addons`)는
+// 여러 뷰를 **묶음 탭** 하나로 접고, 활성 뷰가 든 묶음의 뷰를 2단에 세울 수 있다. 무엇을 어떻게 묶을지는
+// 덧붙이가 정하고, 코어는 그 모양만 정한다.
+
+/** 탭 줄 1단의 한 칸 — 뷰 탭 하나, 또는 여러 뷰를 대신하는 묶음 탭. */
+export type TabRowItem =
+  | { kind: 'view'; view: SavedView }
+  | { kind: 'bundle'; key: string; label: string; views: SavedView[] }
+
+export type TabArrangement = {
+  /** 1단 — 꺼내 둔 순서(기본 뷰 첫 자리). */
+  items: TabRowItem[]
+  /** 활성 뷰가 든 묶음의 key — 없으면 null(2단이 서지 않는다). */
+  activeBundle: string | null
+  /** 2단 — 활성 묶음의 뷰. 활성 묶음이 없으면 빈 배열. */
+  activeBundleViews: SavedView[]
+}
+
+/** 탭 줄 배치 규칙 — `resolveTabViews` 결과를 받아 1단 · 2단을 정한다. */
+export type ArrangeTabs = (
+  tabs: readonly SavedView[],
+  opts: DefaultViewRef & { activeId: string },
+) => TabArrangement
+
+/** 기본 배치 — 묶지 않고 차례로 세운다. */
+export const flatTabArrangement: ArrangeTabs = (tabs) => ({
+  items: tabs.map((view) => ({ kind: 'view', view })),
+  activeBundle: null,
+  activeBundleViews: [],
+})
+
+/**
+ * 목록 일부만 순서를 바꾼다 — `ordered` 에 든 id 들이 차지하던 자리에 새 순서로 다시 채운다.
+ * 2단(한 묶음의 뷰)이나 1단(묶이지 않은 뷰)에서만 끌어도 나머지 탭의 자리는 그대로 남는다.
+ * `full` 에 없는 id 는 무시한다.
+ */
+export function reorderWithin(full: readonly string[], ordered: readonly string[]): string[] {
+  const members = new Set(ordered.filter((id) => full.includes(id)))
+  const queue = ordered.filter((id) => members.has(id))
+  return full.map((id) => (members.has(id) ? (queue.shift() ?? id) : id))
+}
+
 /** 지금 탭에 나와 있는가 — 기본 뷰는 목록과 무관하게 항상 나와 있다. */
 export function isViewPinned(
   pinnedViewIds: readonly string[],

@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "컬렉션 덧붙이: 폼 문항 → 기록 칸 · 칸 → 속성 정의 변환, 답 요약 · 구역별 답 줄, 답 표(React).",
+  "description": "컬렉션 덧붙이: 폼 문항 → 기록 칸 · 칸 → 속성 정의 변환, 답 요약 · 구역별 답 줄, 답 표(React), 뷰 탭 업무 그룹.",
   "exports": {
     ".": "./src/index.ts",
-    "./react": "./src/react.tsx"
+    "./react": "./src/react.tsx",
+    "./view-groups": "./src/view-groups.tsx"
   },
   "types": "./src/index.ts",
   "scripts": {
@@ -27,5 +28,9 @@
     "react": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "@oobleck/collection": "file:../collection",
+    "@oobleck/collection-views": "file:../collection-views"
   }
 }
