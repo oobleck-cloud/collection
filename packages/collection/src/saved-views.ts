@@ -210,7 +210,7 @@ export function sanitizePinnedViewIds(
 /** 소유·기본 여부를 함께 보는 가드들의 입력. */
 export type SavedViewGuardContext = DefaultViewRef & {
   currentUserId?: string | null
-  /** 관리자 — 남이 만든 **공유** 뷰도 고친다(이름·설정·공유 전환). 삭제는 여전히 만든 사람만. */
+  /** 관리자 — 남이 만든 **공유** 뷰도 고치고 지운다(이름·설정·공유 전환·삭제). 시스템 뷰는 지우지 않는다. */
   canManageAny?: boolean
 }
 
@@ -236,12 +236,13 @@ export function canEditSavedView(view: SavedView, opts: SavedViewGuardContext): 
 }
 
 /**
- * 삭제 가능한가 — **만든 사람만**(관리자도 남의 뷰는 못 지운다). 삭제는 뷰 자체를 없애는 것이고,
- * 공유 뷰라면 남의 화면에서도 사라진다("탭에서 제거"와 헷갈리면 사고가 난다).
+ * 삭제 가능한가 — 만든 사람, 관리자에게는 남의 공유 뷰까지(사람 결정 2026-11-07, 서버도 같은 규칙).
+ * 삭제는 뷰 자체를 없애는 것이고, 공유 뷰라면 남의 화면에서도 사라진다("탭에서 제거"와 헷갈리면 사고가 난다).
+ * 기본 뷰 · 시스템 뷰(코드 프리셋)는 누구도 못 지운다.
  */
 export function canDeleteSavedView(view: SavedView, opts: SavedViewGuardContext): boolean {
   if (view.id === opts.defaultViewId || view.system) return false
-  return isOwnSavedView(view, opts.currentUserId)
+  return canEditSavedView(view, opts)
 }
 
 /** 복제해서 내 뷰로 만들 수 있는가 — 못 고치는 뷰(남의 공유 뷰)에 주어지는 유일한 편집 경로. */
