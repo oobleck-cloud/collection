@@ -11,12 +11,12 @@ import {
   type ViewTabMenuExtra,
 } from '@oobleck/collection-views/views/view-tab-menu'
 
-import { arrangeTabsByGroup, normalizeGroupName, viewGroupNames, viewGroupOf } from './view-groups'
+import { arrangeTabsByGroup, normalizeGroupName, viewGroupNames, viewGroupOf } from './view-group-rules'
 import { viewGroupsCopy } from './view-groups.messages'
 
 import type { ViewTabsProps } from '@oobleck/collection-views/views/ViewTabs'
 
-export * from './view-groups'
+export * from './view-group-rules'
 
 /**
  * 그룹 고르기 — 탭 메뉴 자리에서 바뀌어 열린다. 있는 그룹 · 그룹 없음 · 새 그룹 이름 입력. 지금 그룹에는 체크.
