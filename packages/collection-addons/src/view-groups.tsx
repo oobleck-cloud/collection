@@ -11,7 +11,12 @@ import {
   type ViewTabMenuExtra,
 } from '@oobleck/collection-views/views/view-tab-menu'
 
-import { arrangeTabsByGroup, normalizeGroupName, viewGroupNames, viewGroupOf } from './view-group-rules'
+import {
+  arrangeTabsByGroup,
+  normalizeGroupName,
+  viewGroupNames,
+  viewGroupOf,
+} from './view-group-rules'
 import { viewGroupsCopy } from './view-groups.messages'
 
 import type { ViewTabsProps } from '@oobleck/collection-views/views/ViewTabs'
