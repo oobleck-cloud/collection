@@ -6,12 +6,16 @@ import type { ArrangeTabs, SavedView, SavedViewGuardContext, TabRowItem } from '
  * 업무 그룹 — 꺼내 둔 탭이 열 개를 넘으면 한 줄에서 찾기 어렵다. 뷰에 **그룹 이름**을 달아 탭 줄 1단에는
  * 그룹 탭(묶음 탭)을, 2단에는 지금 그룹의 뷰만 세운다.
  *
- * 그룹은 따로 저장되는 실체가 아니라 **뷰가 가진 이름**이다. 그래서 그룹 순서는 꺼내 둔 순서에서 처음 나온
- * 자리를 따르고(각자의 탭 배치가 그대로 그룹 배치가 된다), 마지막 뷰가 빠지면 그룹도 사라진다. 기본 뷰는
+ * 그룹은 따로 저장되는 실체가 아니라 **뷰가 가진 이름**이다. 그래서 그룹 탭은 꺼내 둔 순서에서 처음 나온
+ * 자리에 서고, 마지막 뷰가 빠지면 그룹도 사라진다. 그룹 탭끼리의 순서는 사람마다 따로 고를 수 있다
+ * (`arrangeTabsByGroupOrder` — 그룹 탭이 선 자리 안에서만 바뀌고, 묶이지 않은 뷰 자리는 그대로). 기본 뷰는
  * 그룹에 들지 않는다(첫 자리 고정). 이름을 어디에 저장할지는 호스트의 몫이다(뷰를 읽을 때 `group` 에 채운다).
  *
  * 코어 탭 줄(`ViewTabs`)과는 `arrangeTabs` 와 `tabMenuExtras` 두 자리로만 잇는다 — React 쪽은 `./view-groups`.
  */
+
+/** 탭 줄 1단의 묶음(그룹) 탭. */
+type BundleItem = Extract<TabRowItem, { kind: 'bundle' }>
 
 /** 그룹 이름을 가진 뷰 — 미지정 · 빈 문자열이면 그룹 없음. */
 export type GroupedSavedView = SavedView & { group?: string }
@@ -70,6 +74,41 @@ export const arrangeTabsByGroup: ArrangeTabs = (tabs, { defaultViewId, activeId 
     activeBundle,
     activeBundleViews: activeBundle === null ? [] : (groups.get(activeBundle) ?? []),
   }
+}
+
+/**
+ * 그룹 순서를 따르는 탭 줄 배치 — 그룹 탭이 선 **자리**는 그대로 두고, 그 자리들 안에서 `order` 순으로 다시 세운다.
+ * `order` 에 없는 그룹은 저장된 그룹 뒤에, 처음 나온 순서대로. 묶이지 않은 뷰는 움직이지 않는다.
+ */
+export function arrangeTabsByGroupOrder(order: readonly string[]): ArrangeTabs {
+  if (order.length === 0) return arrangeTabsByGroup
+  const rank = new Map(order.map((name, i) => [name, i]))
+  return (tabs, ctx) => {
+    const arranged = arrangeTabsByGroup(tabs, ctx)
+    const bundles = arranged.items.filter((i): i is BundleItem => i.kind === 'bundle')
+    const sorted = bundles
+      .map((item, appeared) => ({ item, appeared }))
+      .sort(
+        (a, b) =>
+          (rank.get(a.item.key) ?? order.length) - (rank.get(b.item.key) ?? order.length) ||
+          a.appeared - b.appeared,
+      )
+      .map((x) => x.item)
+    let next = 0
+    return {
+      ...arranged,
+      items: arranged.items.map((item) => (item.kind === 'bundle' ? sorted[next++]! : item)),
+    }
+  }
+}
+
+/**
+ * 그룹 탭을 끌어 놓은 뒤 저장할 순서 — 지금 탭 줄에 선 그룹(새 순서)을 앞에, 저장돼 있던 나머지(지금 탭에 없는 그룹)를
+ * 그 뒤에 둔다. 탭에서 잠시 빠진 그룹도 다시 나오면 고른 자리로 돌아온다.
+ */
+export function nextGroupOrder(saved: readonly string[], shown: readonly string[]): string[] {
+  const head = [...new Set(shown)]
+  return [...head, ...saved.filter((name) => !head.includes(name))]
 }
 
 /**
