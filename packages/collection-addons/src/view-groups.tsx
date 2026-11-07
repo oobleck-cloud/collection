@@ -12,8 +12,9 @@ import {
 } from '@oobleck/collection-views/views/view-tab-menu'
 
 import {
-  arrangeTabsByGroup,
+  arrangeTabsByGroupOrder,
   canMoveViewToGroup,
+  nextGroupOrder,
   normalizeGroupName,
   viewGroupNames,
   viewGroupOf,
@@ -83,13 +84,17 @@ export type UseViewGroupTabsOptions = {
   canManageAny?: boolean
   /** 뷰를 그룹으로 옮긴다(null = 그룹에서 빼기). 없으면 탭만 묶고 메뉴 항목은 없다. */
   onMoveToGroup?: (id: string, group: string | null) => void
+  /** 이 사람이 고른 그룹 탭 순서(그룹 이름). 없거나 비면 꺼내 둔 순서에서 처음 나온 자리대로. */
+  groupOrder?: readonly string[]
+  /** 그룹 탭을 끌어 놓았을 때 저장할 순서 — 탭에 없는 그룹의 자리도 담는다. 없으면 그룹 탭은 끌리지 않는다. */
+  onReorderGroups?: (groupOrder: string[]) => void
 }
 
 /**
  * 업무 그룹을 `ViewTabs` 에 건다 — 돌려준 값을 그대로 펼쳐 넘긴다.
  *
  * ```tsx
- * const groups = useViewGroupTabs({ views, defaultViewId, currentUserId, onMoveToGroup })
+ * const groups = useViewGroupTabs({ views, defaultViewId, currentUserId, onMoveToGroup, groupOrder, onReorderGroups })
  * <ViewTabs {...props} {...groups} />
  * ```
  *
@@ -101,7 +106,10 @@ export function useViewGroupTabs({
   currentUserId,
   canManageAny,
   onMoveToGroup,
-}: UseViewGroupTabsOptions): Required<Pick<ViewTabsProps, 'arrangeTabs' | 'tabMenuExtras'>> {
+  groupOrder = NO_ORDER,
+  onReorderGroups,
+}: UseViewGroupTabsOptions): Required<Pick<ViewTabsProps, 'arrangeTabs' | 'tabMenuExtras'>> &
+  Pick<ViewTabsProps, 'onReorderBundles'> {
   const c = viewGroupsCopy(useCollectionLocale())
   const groupNames = viewGroupNames(views)
   const guard = { defaultViewId, currentUserId, canManageAny }
@@ -130,5 +138,13 @@ export function useViewGroupTabs({
     ]
   }
 
-  return { arrangeTabs: arrangeTabsByGroup, tabMenuExtras }
+  return {
+    arrangeTabs: arrangeTabsByGroupOrder(groupOrder),
+    tabMenuExtras,
+    onReorderBundles: onReorderGroups
+      ? (shown) => onReorderGroups(nextGroupOrder(groupOrder, shown))
+      : undefined,
+  }
 }
+
+const NO_ORDER: readonly string[] = []

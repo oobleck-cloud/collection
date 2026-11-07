@@ -184,3 +184,43 @@ describe('ViewTabs 메뉴 덧붙이', () => {
     expect(screen.getByRole('menuitem', { name: /꼬리표/ })).toBeTruthy()
   })
 })
+
+describe('ViewTabs 묶음 탭 끌기', () => {
+  // 묶음 둘 — match·mine 은 '콜', video·done 은 '방문'.
+  const TWO: Record<string, string> = { match: 'call', mine: 'call', video: 'visit', done: 'visit' }
+  const arrangeTwo: ArrangeTabs = (all) => {
+    const items: TabRowItem[] = []
+    const seen = new Map<string, Extract<TabRowItem, { kind: 'bundle' }>>()
+    for (const v of all) {
+      const key = TWO[v.id]
+      if (!key) {
+        items.push({ kind: 'view', view: v })
+        continue
+      }
+      const bundle = seen.get(key)
+      if (bundle) bundle.views.push(v)
+      else {
+        const created = { kind: 'bundle' as const, key, label: key, views: [v] }
+        seen.set(key, created)
+        items.push(created)
+      }
+    }
+    return { items, activeBundle: null, activeBundleViews: [] }
+  }
+  const bundleShell = (name: RegExp) =>
+    screen.getByRole('button', { name }).closest('[data-view-tab]')
+
+  it('onReorderBundles 가 있으면 묶음 탭이 끌리는 자리에 서고(key 로), 누르면 여전히 전환한다', () => {
+    const onSwitch = vi.fn()
+    render(tabs('default', { arrangeTabs: arrangeTwo, onReorderBundles: vi.fn(), onSwitch }))
+    expect(bundleShell(/call/)?.getAttribute('data-view-tab')).toBe('call')
+    expect(bundleShell(/visit/)?.getAttribute('data-view-tab')).toBe('visit')
+    fireEvent.click(screen.getByRole('button', { name: /visit/ }))
+    expect(onSwitch).toHaveBeenLastCalledWith('video')
+  })
+
+  it('없으면 묶음 탭은 끌리지 않는다', () => {
+    render(tabs('default', { arrangeTabs: arrangeTwo }))
+    expect(bundleShell(/call/)).toBeNull()
+  })
+})

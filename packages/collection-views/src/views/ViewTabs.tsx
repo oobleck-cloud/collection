@@ -67,6 +67,11 @@ export type ViewTabsProps = {
   onReorder?: (pinnedViewIds: string[]) => void
   /** 탭 줄 배치 — 뷰를 묶음 탭으로 접는다. 없으면 차례로 세운다. */
   arrangeTabs?: ArrangeTabs
+  /**
+   * 묶음 탭의 새 순서(묶음 key) — 1단의 묶음 탭끼리 끌어서 놓았을 때. 묶음 탭이 선 자리 안에서만 바뀌고 묶이지 않은
+   * 뷰 자리는 그대로다. 순서를 기억해 `arrangeTabs` 에 반영하는 일은 덧붙이(호스트)의 몫. 없으면 묶음 탭은 끌리지 않는다.
+   */
+  onReorderBundles?: (bundleKeys: string[]) => void
   /** 활성 탭 메뉴에 더할 항목(뷰마다). 기본 뷰에는 메뉴가 없다. */
   tabMenuExtras?: (view: SavedView) => readonly ViewTabMenuExtra[]
   /** inline=true: 외부 wrapper(border-b/mb-2) 없이 탭 콘텐츠만 렌더(ViewHeader 등과 합성 시). */
@@ -224,6 +229,7 @@ export function ViewTabs({
   onDuplicate,
   onReorder,
   arrangeTabs = flatTabArrangement,
+  onReorderBundles,
   tabMenuExtras,
   inline,
 }: ViewTabsProps) {
@@ -247,6 +253,11 @@ export function ViewTabs({
   const bundleDrag = useTabDrag(
     activeBundleViews.map((v) => v.id),
     reorderSubset,
+  )
+  // 묶음 탭끼리 — 1단의 묶음 탭 자리 안에서만 순서가 바뀐다(뷰 탭과 섞이지 않는다).
+  const bundleRowDrag = useTabDrag(
+    items.flatMap((i) => (i.kind === 'bundle' ? [i.key] : [])),
+    onReorderBundles,
   )
 
   const renderTab = (v: SavedView, drag: TabDrag | null) => (
@@ -275,15 +286,16 @@ export function ViewTabs({
         const remembered = lastInBundle.current.get(item.key)
         const target = item.views.some((v) => v.id === remembered) ? remembered : item.views[0]?.id
         return (
-          <BundleTab
-            key={`bundle:${item.key}`}
-            label={item.label}
-            count={item.views.length}
-            active={item.key === activeBundle}
-            onClick={() => {
-              if (item.key !== activeBundle && target) onSwitch(target)
-            }}
-          />
+          <DraggableTab key={`bundle:${item.key}`} id={item.key} drag={bundleRowDrag}>
+            <BundleTab
+              label={item.label}
+              count={item.views.length}
+              active={item.key === activeBundle}
+              onClick={() => {
+                if (item.key !== activeBundle && target) onSwitch(target)
+              }}
+            />
+          </DraggableTab>
         )
       })}
       <ViewDrawer

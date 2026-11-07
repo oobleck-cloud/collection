@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   arrangeTabsByGroup,
+  arrangeTabsByGroupOrder,
   canMoveViewToGroup,
+  nextGroupOrder,
   normalizeGroupName,
   viewGroupNames,
   viewGroupOf,
@@ -94,5 +96,50 @@ describe('canMoveViewToGroup', () => {
     expect(canMoveViewToGroup(system, admin)).toBe(true)
     expect(canMoveViewToGroup(othersPrivate, admin)).toBe(false)
     expect(canMoveViewToGroup(view('default'), admin)).toBe(false)
+  })
+})
+
+describe('그룹 탭 순서', () => {
+  const tabs = [
+    view('default'),
+    view('a', 'PartnerOps'),
+    view('loose'),
+    view('b', 'SalesOps'),
+    view('c', 'PlannerOps'),
+    view('d', 'PartnerOps'),
+  ]
+  const keysOf = (order: string[]) =>
+    arrangeTabsByGroupOrder(order)(tabs, { ...OPTS, activeId: 'c' }).items.map((i) =>
+      i.kind === 'view' ? i.view.id : `[${i.key}]`,
+    )
+
+  it('순서가 없으면 처음 나온 자리대로(예전과 같다)', () => {
+    expect(keysOf([])).toEqual(['default', '[PartnerOps]', 'loose', '[SalesOps]', '[PlannerOps]'])
+  })
+
+  it('그룹 탭이 선 자리 안에서만 고른 순서로 — 묶이지 않은 뷰 자리는 그대로', () => {
+    expect(keysOf(['PlannerOps', 'PartnerOps', 'SalesOps'])).toEqual([
+      'default',
+      '[PlannerOps]',
+      'loose',
+      '[PartnerOps]',
+      '[SalesOps]',
+    ])
+  })
+
+  it('순서에 없는 그룹은 저장된 그룹 뒤에, 처음 나온 순서로 · 활성 묶음은 그대로', () => {
+    const arranged = arrangeTabsByGroupOrder(['SalesOps'])(tabs, { ...OPTS, activeId: 'c' })
+    expect(arranged.items.flatMap((i) => (i.kind === 'bundle' ? [i.key] : []))).toEqual([
+      'SalesOps',
+      'PartnerOps',
+      'PlannerOps',
+    ])
+    expect(arranged.activeBundle).toBe('PlannerOps')
+    expect(arranged.activeBundleViews.map((v) => v.id)).toEqual(['c'])
+  })
+
+  it('저장할 순서 — 지금 탭의 새 순서 앞에, 탭에 없는 저장 그룹은 뒤에 남긴다', () => {
+    expect(nextGroupOrder(['A', 'Hidden', 'B'], ['B', 'A'])).toEqual(['B', 'A', 'Hidden'])
+    expect(nextGroupOrder([], ['B', 'A'])).toEqual(['B', 'A'])
   })
 })
