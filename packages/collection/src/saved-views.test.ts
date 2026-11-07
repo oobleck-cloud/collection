@@ -220,15 +220,16 @@ describe('가드 — 관리자(canManageAny)', () => {
   const othersPrivate: SavedView = { ...OTHERS, id: 'others-private', visibility: 'private' }
   const system: SavedView = { ...OTHERS, id: 'preset:mm', system: true }
 
-  it('남의 공유 뷰를 고친다 — 지우지는 못한다', () => {
+  it('남의 공유 뷰를 고치고 지운다', () => {
     expect(canEditSavedView(OTHERS, admin)).toBe(true)
     expect(canSaveSavedViewConfig(OTHERS, admin)).toBe(true)
-    expect(canDeleteSavedView(OTHERS, admin)).toBe(false)
+    expect(canDeleteSavedView(OTHERS, admin)).toBe(true)
   })
 
   it('남의 비공개 뷰는 관리자도 못 고친다', () => {
     expect(canEditSavedView(othersPrivate, admin)).toBe(false)
     expect(canSaveSavedViewConfig(othersPrivate, admin)).toBe(false)
+    expect(canDeleteSavedView(othersPrivate, admin)).toBe(false)
   })
 
   it('시스템 뷰의 이름 · 설정은 관리자만 고치고, 삭제는 누구도 못 한다', () => {
