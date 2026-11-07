@@ -223,12 +223,14 @@ export function canRemoveViewFromTabs(viewId: string, opts: DefaultViewRef): boo
 }
 
 /**
- * 이름 변경·공유 전환이 가능한가 — 내 뷰, 또는 관리자에게는 남의 공유 뷰. 기본 뷰·시스템 뷰는 아니다.
+ * 이름 변경·공유 전환이 가능한가 — 내 뷰, 또는 관리자에게는 남의 공유 뷰 · 시스템 뷰. 기본 뷰는 아니다.
  * 관리자가 아니면 남의 공유 뷰는 고치지 않는다(복제해서 내 뷰로 만든 뒤 고친다). 기본 뷰는 화면이 만든
- * 것이라 어디에도 저장할 자리가 없고, 시스템 뷰의 이름은 코드가 정한다.
+ * 것이라 어디에도 저장할 자리가 없다. 관리자는 공유 뷰에서 만든 사람과 같은 일을 한다(사람 결정 2026-11-07,
+ * 삭제만 빼고) — 시스템 뷰의 이름도 고친다. 시스템 뷰는 이미 공유라 공유 전환은 메뉴에 서지 않는다.
  */
 export function canEditSavedView(view: SavedView, opts: SavedViewGuardContext): boolean {
-  if (view.id === opts.defaultViewId || view.system) return false
+  if (view.id === opts.defaultViewId) return false
+  if (view.system) return opts.canManageAny === true
   if (isOwnSavedView(view, opts.currentUserId)) return true
   return opts.canManageAny === true && isSharedSavedView(view)
 }
@@ -248,10 +250,8 @@ export function canDuplicateSavedView(view: SavedView, opts: SavedViewGuardConte
 }
 
 /**
- * 설정(컬럼·정렬·필터)을 고쳐 **저장**할 수 있는가 — 이름을 고칠 수 있는 뷰, 그리고 관리자에게는 시스템 뷰.
- * 시스템 뷰는 이름은 못 바꾸지만 설정은 관리자가 모두를 위해 고친다.
+ * 설정(컬럼·정렬·필터)을 고쳐 **저장**할 수 있는가 — 이름을 고칠 수 있는 뷰와 같다(관리자에게는 시스템 뷰까지).
  */
 export function canSaveSavedViewConfig(view: SavedView, opts: SavedViewGuardContext): boolean {
-  if (view.system) return opts.canManageAny === true
   return canEditSavedView(view, opts)
 }
