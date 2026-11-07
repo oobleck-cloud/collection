@@ -231,11 +231,13 @@ describe('가드 — 관리자(canManageAny)', () => {
     expect(canSaveSavedViewConfig(othersPrivate, admin)).toBe(false)
   })
 
-  it('시스템 뷰는 이름·삭제는 누구도 못 하고, 설정 저장은 관리자만', () => {
-    expect(canEditSavedView(system, admin)).toBe(false)
-    expect(canDeleteSavedView(system, admin)).toBe(false)
+  it('시스템 뷰의 이름 · 설정은 관리자만 고치고, 삭제는 누구도 못 한다', () => {
+    const member = { ...DEFAULTS, currentUserId: 'u1' }
+    expect(canEditSavedView(system, admin)).toBe(true)
     expect(canSaveSavedViewConfig(system, admin)).toBe(true)
-    expect(canSaveSavedViewConfig(system, { ...DEFAULTS, currentUserId: 'u1' })).toBe(false)
+    expect(canDeleteSavedView(system, admin)).toBe(false)
+    expect(canEditSavedView(system, member)).toBe(false)
+    expect(canSaveSavedViewConfig(system, member)).toBe(false)
   })
 
   it('기본 뷰는 관리자도 못 고친다', () => {

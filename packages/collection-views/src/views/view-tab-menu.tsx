@@ -97,7 +97,7 @@ export type ViewTabMenuProps = {
   view: SavedView
   defaultViewId: string
   currentUserId?: string | null
-  /** 관리자 — 남의 공유 뷰도 이름 변경·공유 전환(삭제는 아님). */
+  /** 관리자 — 남의 공유 뷰 · 시스템 뷰도 이름 변경(삭제는 아님). */
   canManageAny?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -119,7 +119,8 @@ export type ViewTabMenuProps = {
 /**
  * 탭 메뉴 — 소유 여부로 항목이 갈린다.
  *  - 내 뷰: 이름 변경 · (비공개면) 전체 공유로 전환 · 탭에서 제거 · 뷰 삭제
- *  - 남의 공유 뷰: 복제해서 내 뷰로 · 탭에서 제거 (이름 변경·삭제 없음 — 남의 것은 복제해서 고친다)
+ *  - 남의 공유 뷰 · 시스템 뷰: 복제해서 내 뷰로 · 탭에서 제거 (이름 변경·삭제 없음 — 남의 것은 복제해서 고친다)
+ *  - 관리자에게 남의 공유 뷰 · 시스템 뷰: 이름 변경 · 복제해서 내 뷰로 · 탭에서 제거 (삭제는 만든 사람만)
  */
 export function ViewTabMenu({
   view,
