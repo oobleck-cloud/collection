@@ -1,4 +1,6 @@
-import type { ArrangeTabs, SavedView, TabRowItem } from '@oobleck/collection'
+import { canEditSavedView, canSaveSavedViewConfig } from '@oobleck/collection'
+
+import type { ArrangeTabs, SavedView, SavedViewGuardContext, TabRowItem } from '@oobleck/collection'
 
 /**
  * 업무 그룹 — 꺼내 둔 탭이 열 개를 넘으면 한 줄에서 찾기 어렵다. 뷰에 **그룹 이름**을 달아 탭 줄 1단에는
@@ -68,4 +70,12 @@ export const arrangeTabsByGroup: ArrangeTabs = (tabs, { defaultViewId, activeId 
     activeBundle,
     activeBundleViews: activeBundle === null ? [] : (groups.get(activeBundle) ?? []),
   }
+}
+
+/**
+ * 그룹을 옮길 수 있는가 — 이름을 고칠 수 있는 뷰(내 뷰), 또는 설정을 저장할 수 있는 뷰(관리자: 남의 공유 뷰 ·
+ * 시스템 뷰). 그룹은 모두에게 보이는 뷰의 속성이라 남의 비공개 뷰는 관리자도 못 옮긴다. 기본 뷰는 누구도 못 옮긴다.
+ */
+export function canMoveViewToGroup(view: SavedView, guard: SavedViewGuardContext): boolean {
+  return canEditSavedView(view, guard) || canSaveSavedViewConfig(view, guard)
 }

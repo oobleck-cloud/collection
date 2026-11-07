@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { canEditSavedView, type SavedView } from '@oobleck/collection'
+import type { SavedView } from '@oobleck/collection'
 import { useCollectionLocale } from '@oobleck/collection-views'
 import { Check, Input, Tags, cn } from '@oobleck/collection-views/kit'
 import {
@@ -13,6 +13,7 @@ import {
 
 import {
   arrangeTabsByGroup,
+  canMoveViewToGroup,
   normalizeGroupName,
   viewGroupNames,
   viewGroupOf,
@@ -92,7 +93,7 @@ export type UseViewGroupTabsOptions = {
  * <ViewTabs {...props} {...groups} />
  * ```
  *
- * "그룹으로 이동"은 이름을 고칠 수 있는 뷰(`canEditSavedView`)에만 선다 — 그룹은 모두에게 보이는 뷰의 속성이다.
+ * "그룹으로 이동"은 `canMoveViewToGroup` 인 뷰에만 선다 — 내 뷰, 관리자에게는 남의 공유 뷰 · 시스템 뷰까지.
  */
 export function useViewGroupTabs({
   views,
@@ -106,7 +107,7 @@ export function useViewGroupTabs({
   const guard = { defaultViewId, currentUserId, canManageAny }
 
   const tabMenuExtras = (view: SavedView): ViewTabMenuExtra[] => {
-    if (!onMoveToGroup || !canEditSavedView(view, guard)) return []
+    if (!onMoveToGroup || !canMoveViewToGroup(view, guard)) return []
     const current = viewGroupOf(view)
     return [
       {

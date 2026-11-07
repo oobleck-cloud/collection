@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   arrangeTabsByGroup,
+  canMoveViewToGroup,
   normalizeGroupName,
   viewGroupNames,
   viewGroupOf,
@@ -66,5 +67,32 @@ describe('arrangeTabsByGroup', () => {
     const arranged = arrangeTabsByGroup(tabs, { ...OPTS, activeId: 'mine' })
     expect(arranged.activeBundle).toBeNull()
     expect(arranged.activeBundleViews).toEqual([])
+  })
+})
+
+describe('canMoveViewToGroup', () => {
+  const mine = { ...view('mine'), ownerId: 'u1' }
+  const othersShared: GroupedSavedView = { ...view('s'), ownerId: 'u2', visibility: 'shared' }
+  const othersPrivate: GroupedSavedView = { ...view('p'), ownerId: 'u2', visibility: 'private' }
+  const system: GroupedSavedView = {
+    ...view('preset:x'),
+    ownerId: 'system',
+    visibility: 'shared',
+    system: true,
+  }
+  const user = { ...OPTS, currentUserId: 'u1' }
+  const admin = { ...user, canManageAny: true }
+
+  it('일반 사용자는 내 뷰만', () => {
+    expect(canMoveViewToGroup(mine, user)).toBe(true)
+    expect(canMoveViewToGroup(othersShared, user)).toBe(false)
+    expect(canMoveViewToGroup(system, user)).toBe(false)
+  })
+
+  it('관리자는 남의 공유 뷰 · 시스템 뷰도, 남의 비공개 뷰와 기본 뷰는 못 옮긴다', () => {
+    expect(canMoveViewToGroup(othersShared, admin)).toBe(true)
+    expect(canMoveViewToGroup(system, admin)).toBe(true)
+    expect(canMoveViewToGroup(othersPrivate, admin)).toBe(false)
+    expect(canMoveViewToGroup(view('default'), admin)).toBe(false)
   })
 })

@@ -19,6 +19,7 @@ export {
 } from './answers'
 export {
   arrangeTabsByGroup,
+  canMoveViewToGroup,
   normalizeGroupName,
   viewGroupNames,
   viewGroupOf,
