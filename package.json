@@ -1,6 +1,7 @@
 {
   "name": "collection",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "workspaces": [
     "packages/collection",

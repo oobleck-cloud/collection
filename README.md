@@ -9,12 +9,20 @@ oobleck 공용 컬렉션.
 | `@oobleck/collection-addons`          | 덧붙이. 폼 문항 → 기록 칸 → 속성 정의 변환, 칸 답 한 줄 요약, 구역별 답 줄(`./react` 의 `AnswerSections` 로 그린다), 뷰 탭 업무 그룹(`./view-groups`). 앱 타입을 모르고 구조로만 받는다. |
 | `@oobleck/collection-views-workstyle` | Workstyle 킷. 부품 자리를 `@oobleck/workstyle/react` 로 채운다. `@oobleck/workstyle` 이 있어야 해서 따로 둔다.                                                                           |
 
+GitHub Packages에 `@oobleck-cloud/*` 이름으로 게시한 판을 별칭으로 받는다. dangoal `apps/ops`와 워크벤치가 이렇게 쓴다.
+
 ```json
 {
-  "@oobleck/collection": "github:oobleck-cloud/collection#path:packages/collection",
-  "@oobleck/collection-views": "github:oobleck-cloud/collection#path:packages/collection-views"
+  "@oobleck/collection": "npm:@oobleck-cloud/collection@0.1.0",
+  "@oobleck/collection-views": "npm:@oobleck-cloud/collection-views@0.1.0"
 }
 ```
+
+`.npmrc`에는 `@oobleck-cloud:registry=https://npm.pkg.github.com`을 둔다.
+
+## 라이선스
+
+비공개(UNLICENSED). oobleck-cloud 내부 프로젝트에서만 쓴다. `LICENSE`를 본다.
 
 ## 부품 자리(kit)
 

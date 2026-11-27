@@ -2,6 +2,7 @@
   "name": "@oobleck/collection-addons",
   "version": "0.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "컬렉션 덧붙이: 폼 문항 → 기록 칸 · 칸 → 속성 정의 변환, 답 요약 · 구역별 답 줄, 답 표(React), 뷰 탭 업무 그룹.",
   "exports": {
