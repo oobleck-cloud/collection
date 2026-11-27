@@ -2,6 +2,7 @@
   "name": "@oobleck/collection-views-workstyle",
   "version": "0.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "컬렉션 뷰의 Workstyle 킷: @oobleck/collection-views 의 부품 자리를 @oobleck/workstyle/react 로 채운다.",
   "exports": {
