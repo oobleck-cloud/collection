@@ -104,6 +104,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
 } from 'react'
+import { systhemeTagColor } from './systhemeTagColor'
 
 // @oobleck/collection — 테이블 뷰 렌더러(D-8 §6). 도메인 무관: BlockPack 계약만 알면
 // 어떤 블록팩(policy·product…)의 문서 집합이든 표로 렌더한다.
@@ -559,7 +560,7 @@ function ReadonlyCell({ def, value }: { def: PropertyDef; value: PropertyValue }
       // 규칙(resolveOptionColor)이라 한 값이 표·카드·그룹 헤더 어디서나 같은 색을 갖는다.
       // 좁은 컬럼에서는 라벨만 말줄임(…) — 칩이 셀 밖으로 삐져나가 옆 컬럼을 덮지 않게(사람 칩과 같은 규칙).
       return (
-        <Tag color={resolveOptionColor(def, v)} size="sm" className="max-w-full">
+        <Tag color={systhemeTagColor(resolveOptionColor(def, v))} size="sm" className="max-w-full">
           <span className="min-w-0 truncate" title={optionLabelOf(def, v)}>
             {optionLabelOf(def, v)}
           </span>
@@ -574,7 +575,7 @@ function ReadonlyCell({ def, value }: { def: PropertyDef; value: PropertyValue }
       return (
         <div className="flex min-w-0 flex-wrap gap-1">
           {items.map((t) => (
-            <Tag key={t} color={resolveOptionColor(def, t)} size="sm" className="max-w-full">
+            <Tag key={t} color={systhemeTagColor(resolveOptionColor(def, t))} size="sm" className="max-w-full">
               <span className="min-w-0 truncate" title={optionLabelOf(def, t)}>
                 {optionLabelOf(def, t)}
               </span>
@@ -1510,7 +1511,7 @@ function OptionColorRow({
   const label = option.label ?? option.value
   return (
     <div className="group/optcolor flex min-h-7 items-center gap-2 rounded px-2 hover:bg-surface">
-      <Tag size="sm" color={shown}>
+      <Tag size="sm" color={systhemeTagColor(shown)}>
         {label}
       </Tag>
       <span className="flex-1" />

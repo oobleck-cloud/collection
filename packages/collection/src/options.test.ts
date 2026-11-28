@@ -36,6 +36,21 @@ describe('normalizeOptions — 문자열/리치 → 채워진 SelectOption[]', (
     expect(optionColor('published')).toBe(optionColor('published'))
   })
 
+  it('색을 정하지 않은 값의 해시 색은 예전 7색 팔레트 그대로다(이미 있는 태그 색이 바뀌지 않게)', () => {
+    const OLD = ['gray', 'blue', 'green', 'orange', 'red', 'purple', 'teal']
+    const old = (v: string) => {
+      let h = 0
+      for (let i = 0; i < v.length; i++) h = (h * 31 + v.charCodeAt(i)) >>> 0
+      return OLD[h % OLD.length]
+    }
+    for (const v of ['진행', '끝', 'draft', 'published', '사람 확인', 'a', 'teal-ish']) expect(optionColor(v)).toBe(old(v))
+  })
+
+  it('노션 9색과 teal 은 명시색으로 받는다', () => {
+    const def: PropertyDef = { key: 's', label: 's', type: 'select', source: 'frontmatter', origin: 'base', options: ['brown', 'yellow', 'pink', 'teal', 'navy'].map((c) => ({ value: c, color: c })) }
+    expect(['brown', 'yellow', 'pink', 'teal', 'navy'].map((v) => resolveOptionColor(def, v))).toEqual(['brown', 'yellow', 'pink', 'teal', optionColor('navy')])
+  })
+
   it('resolveOptionColor — 옵션 명시색 우선, 무효/미지정은 값 해시색', () => {
     const def: PropertyDef = {
       key: 'tags',
@@ -438,6 +453,11 @@ describe('toViewConfig — 저장 config → 렌더러 ViewConfig(빈 필드 채
         key: 'timeline',
         saved: { timeline: { startKey: 'startsAt', endKey: 'endsAt' } },
         expected: { startKey: 'startsAt', endKey: 'endsAt' },
+      },
+      {
+        key: 'tree',
+        saved: { tree: { parent: 'parent', match: 'slug', depth: 3 } },
+        expected: { parent: 'parent', match: 'slug', depth: 3 },
       },
       {
         key: 'hideEmptyGroups',
