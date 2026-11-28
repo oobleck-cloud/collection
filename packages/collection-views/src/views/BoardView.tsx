@@ -17,7 +17,6 @@ import {
   isPersonType,
   normalizeOptions,
   resolveOptionColor,
-  type OptionColor,
 } from '@oobleck/collection'
 import { resolveCardFormat } from '@oobleck/collection'
 import {
@@ -38,6 +37,8 @@ import { RelationTable } from './RelationTable'
 import { formatTitleText } from '@oobleck/collection'
 import { useCollectionLocale, type CollectionLocale } from '../i18n'
 import { boardViewCopy } from './BoardView.messages'
+import { systhemeTagColor } from './systhemeTagColor'
+import type { TagColor } from '../kit'
 
 // @oobleck/collection — 보드(칸반) 뷰 렌더러(D-8 §6, ViewConfig.type='board'). 노션 보드 동형.
 //
@@ -114,7 +115,7 @@ const COLUMN_WIDTH: Record<'S' | 'M' | 'L', string> = {
 type GroupColumn = { key: string; label: string; color?: string }
 
 /** 열 머리 색 점 — 선택지 색(표 셀 칩의 점과 같은 토큰). 정적 리터럴(Tailwind 스캔). */
-const DOT_CLASS: Record<OptionColor, string> = {
+const DOT_CLASS: Record<TagColor, string> = {
   gray: 'bg-tag-gray-dot',
   red: 'bg-tag-red-dot',
   orange: 'bg-tag-orange-dot',
@@ -163,7 +164,7 @@ function ColumnHeader({
         aria-hidden
         className={cn(
           'size-2 shrink-0 rounded-full',
-          DOT_CLASS[resolveOptionColor(groupDef, col.key)],
+          DOT_CLASS[systhemeTagColor(resolveOptionColor(groupDef, col.key))],
         )}
       />
     ) : null

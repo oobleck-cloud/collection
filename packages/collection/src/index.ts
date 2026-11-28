@@ -7,6 +7,7 @@ export * from './types'
 export * from './schema'
 export * from './options'
 export * from './view'
+export * from './tree' // tree 뷰 줄 펴기 — 위 줄 속성·맞출 속성·깊이(Seed 데이터소스 tree 보기와 같은 설정, 순수)
 export * from './view-drift' // 영속된 뷰 설정 ↔ 현재 스키마의 드리프트 정리(저장된 뷰가 표를 비우지 않게)
 export * from './view-patch' // 뷰 설정 차이 — 저장된 설정 위에 바꾼 항목만 얹는다(개인 초안, 순수)
 export * from './saved-views' // 뷰 서랍 규칙 — 공개범위·소유 판정, 검색·섹션, 탭 꺼내기/넣기(순수)

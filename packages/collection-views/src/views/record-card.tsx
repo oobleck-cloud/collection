@@ -44,6 +44,7 @@ import { PersonValue } from './PersonCell'
 import { RowActionMenu } from './row-action-menu'
 import { StructBand } from './StructCell'
 import { openClickHandlers } from './open-click'
+import { systhemeTagColor } from './systhemeTagColor'
 
 // ─── 카드 크기 타입 ───────────────────────────────────────────────────────────────
 
@@ -176,7 +177,7 @@ export function PropertyChip({
     const v = typeof value === 'string' ? value : ''
     if (!v) return null
     return (
-      <Tag variant="subtle" shape="pill" color={resolveOptionColor(def, v)} size="sm">
+      <Tag variant="subtle" shape="pill" color={systhemeTagColor(resolveOptionColor(def, v))} size="sm">
         {optionLabel(v)}
       </Tag>
     )
@@ -187,7 +188,7 @@ export function PropertyChip({
     return (
       <>
         {items.slice(0, 3).map((v) => (
-          <Tag key={v} variant="subtle" shape="pill" color={resolveOptionColor(def, v)} size="sm">
+          <Tag key={v} variant="subtle" shape="pill" color={systhemeTagColor(resolveOptionColor(def, v))} size="sm">
             {optionLabel(v)}
           </Tag>
         ))}

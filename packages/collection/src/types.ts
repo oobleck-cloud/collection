@@ -23,6 +23,7 @@ export type ViewType =
   | 'chart'
   | 'dashboard'
   | 'map'
+  | 'tree'
 
 /** 프로퍼티(=뷰 컬럼) 타입 — 노션류를 도메인으로 좁힘. 타입마다 필터 연산자/정렬 규칙이 다르다. */
 export type PropertyType =
@@ -53,7 +54,7 @@ export type PropertyType =
  * 팔레트의 단일 진실원천은 options.ts 의 TAG_PALETTE(OptionColor)이며 이 union 은 그와 일치한다 —
  * 값 하나라도 어긋나면 OptionColor↔TagColorName 상호 대입에서 컴파일 에러가 난다(오타를 컴파일 타임에 차단).
  */
-export type TagColorName = 'gray' | 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'teal'
+export type TagColorName = 'gray' | 'brown' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'red' | 'teal'
 
 /**
  * select / multi_select 옵션 정의(노션식). 배열 순서 = 표시 순서.
@@ -62,7 +63,7 @@ export type TagColorName = 'gray' | 'blue' | 'green' | 'orange' | 'red' | 'purpl
 export type SelectOption = {
   value: string
   label?: string
-  /** DS Tag 색 이름(gray|blue|green|orange|red|purple|teal). 미지정 = 값 해시 색. */
+  /** 태그 색 이름(gray|brown|orange|yellow|green|blue|purple|pink|red|teal). 미지정 = 값 해시 색(예전 7색). */
   color?: string
   /** 보조 표기 — person 피커가 이름 옆에 보인다(이메일·역할 등). */
   hint?: string
@@ -538,6 +539,18 @@ export type AggregationType =
  * - endKey: 종료 날짜 속성 키(optional). 설정 시 기간 막대, 미설정 시 점/짧은 막대.
  * - zoom: 시간축 눈금 단위. 미설정 = 'month'.
  */
+/**
+ * tree 뷰 — 줄을 위 줄 아래에 들여 그린다(Seed 데이터소스 tree 보기와 같은 설정). JSON 안전.
+ * - parent: 위 줄을 가리키는 속성 키. 값이 위 줄의 match 값과 같으면 그 아래에 둔다.
+ * - match: parent 값과 견줄 속성 키. 미지정 = 레코드 id.
+ * - depth: 보일 깊이(맨 위 줄이 1, 1~20, 미지정 = 20). 더 깊은 줄은 위 줄의 「하위 N개」로 센다.
+ */
+export type TreeConfig = {
+  parent: string
+  match?: string
+  depth?: number
+}
+
 export type TimelineConfig = {
   startKey: string
   endKey?: string
@@ -648,6 +661,8 @@ export type CollectionViewConfig = {
    * startKey 필수, endKey 있으면 기간 막대(없으면 점/짧은 막대), zoom 으로 눈금 단위.
    */
   timeline?: TimelineConfig
+  /** tree 뷰 — 위 줄 속성·맞출 속성·깊이. 미설정 = 안내 상태. 자세한 의미는 `TreeConfig`. */
+  tree?: TreeConfig
   /**
    * 빈 그룹 숨김 — true 면 rows 0인 그룹 섹션(gallery/list) 및 카드 없는 컬럼(board)을 미표시.
    * groupBy 미설정 시 이 값은 무시된다. 기본 false(빈 그룹 표시 — 현행 동작).
@@ -805,7 +820,7 @@ export type ButtonValue = {
  * 미리 해소해 이 값으로 실어 보낸다 — 렌더러는 스키마에 의존하지 않고 값에 실린 색만 읽는다(팩-무관 계약 유지).
  * JSON 안전(함수 없음, RSC 경계 안전 #237). color 미지정이면 렌더러가 label 해시색으로 폴백한다.
  *  - tag: 표시 라벨(옵션 label 이 있으면 label, 없으면 값). 판별자(string) — GeoValue/ButtonValue 와 구분.
- *  - color: 노션식 팔레트 색(gray|blue|green|orange|red|purple|teal). 미지정 = 라벨 해시색.
+ *  - color: 태그 색(노션 9색 gray|brown|orange|yellow|green|blue|purple|pink|red 와 teal). 미지정 = 라벨 해시색(예전 7색).
  */
 export type TagValue = {
   tag: string
@@ -1009,6 +1024,8 @@ export type ViewConfig = {
    * startKey 필수, endKey 있으면 기간 막대(없으면 점/짧은 막대), zoom 으로 눈금 단위.
    */
   timeline?: TimelineConfig
+  /** tree 뷰 — 위 줄 속성·맞출 속성·깊이. 미설정 = 안내 상태. 자세한 의미는 `TreeConfig`. */
+  tree?: TreeConfig
   /**
    * 빈 그룹 숨김 — true 면 rows 0인 그룹 섹션(gallery/list) 및 카드 없는 컬럼(board)을 미표시.
    * groupBy 미설정 시 이 값은 무시된다. 기본 false(빈 그룹 표시 — 현행 동작).

@@ -14,8 +14,17 @@ import type {
 
 // select / multi_select 옵션 헬퍼(순수). 옵션 정규화(문자열↔리치), 안정 색, 컬렉션 스키마 머지.
 
-/** 노션식 태그 색 팔레트(DS Tag color 이름과 일치). */
-const TAG_PALETTE = ['gray', 'blue', 'green', 'orange', 'red', 'purple', 'teal'] as const
+/**
+ * 받는 태그 색 이름 — 노션 9색(Seed 편집기 글·블록 색과 같은 이름·차례)과 예전 값의 teal.
+ * 사람이나 AI 가 직접 정한 색만 brown·yellow·pink 를 쓴다(해시는 HASH_PALETTE).
+ */
+const TAG_PALETTE = ['gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red', 'teal'] as const
+
+/**
+ * 색을 정하지 않은 값의 해시 팔레트 — 예전 7색 그대로(차례도 그대로). 늘리면 `해시 % 길이` 가 바뀌어
+ * 이미 있는 태그의 색이 모두 바뀐다(워크벤치 티켓·dangoal ops·MVOS).
+ */
+const HASH_PALETTE = ['gray', 'blue', 'green', 'orange', 'red', 'purple', 'teal'] as const
 
 /** 팔레트 색 — DS `TagColor` 와 동일 집합(구조적 호환). select/multi_select 칩 색 타입. */
 export type OptionColor = (typeof TAG_PALETTE)[number]
@@ -35,7 +44,7 @@ void _assertPaletteAligned
 export function optionColor(value: string): OptionColor {
   let h = 0
   for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0
-  return TAG_PALETTE[h % TAG_PALETTE.length]
+  return HASH_PALETTE[h % HASH_PALETTE.length]
 }
 
 /**
@@ -233,6 +242,7 @@ export const VIEW_SETTINGS_KEYS = [
   'relationTable',
   'cardLayout',
   'timeline',
+  'tree',
   'hideEmptyGroups',
   'collapseEmptyGroups',
   'rowHeight',
@@ -277,6 +287,7 @@ export function toViewConfig(saved: CollectionViewConfig, defaultVisible: string
     ...(saved.relationTable ? { relationTable: saved.relationTable } : {}),
     ...(saved.cardLayout ? { cardLayout: saved.cardLayout } : {}),
     ...(saved.timeline ? { timeline: saved.timeline } : {}),
+    ...(saved.tree ? { tree: saved.tree } : {}),
     ...(saved.hideEmptyGroups !== undefined ? { hideEmptyGroups: saved.hideEmptyGroups } : {}),
     ...(saved.collapseEmptyGroups !== undefined
       ? { collapseEmptyGroups: saved.collapseEmptyGroups }

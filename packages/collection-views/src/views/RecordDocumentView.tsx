@@ -18,6 +18,7 @@ import { optionColor } from '@oobleck/collection'
 import { relativeValueLabel } from '@oobleck/collection'
 import { isButtonValue, isTagValue } from '@oobleck/collection'
 import type { DocBlockNode } from '@oobleck/collection'
+import { systhemeTagColor } from './systhemeTagColor'
 
 // DocBlockNode 정본은 ../doc-blocks(비클라이언트 순수 모듈) — 여기서 재노출해 기존 deep-import
 // (`@oobleck/collection/views/RecordDocumentView`)의 하위호환을 유지한다.
@@ -114,7 +115,7 @@ function PropertyValueCell({
     // 색 힌트를 실은 태그(#312 색 팔레트와 정합) — 명시색이 있으면 그 색, 없으면 라벨 해시색(TableView·카드와 동일 규칙).
     // 팩-무관 계약 유지: 스키마 없이 값에 실린 색만 읽는다(색 해소는 doc 빌더가 resolveOptionColor 로 선행).
     return (
-      <Tag color={value.color ?? optionColor(value.tag)} size="sm">
+      <Tag color={systhemeTagColor(value.color ?? optionColor(value.tag))} size="sm">
         {value.tag}
       </Tag>
     )
